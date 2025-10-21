@@ -43,3 +43,16 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+
+# Deployment logs
+*.log
+deployment*.log
+
+# Docker images and deployment artifacts
+*.tar.gz
+docker-compose.prod.yml
+setup-ec2.sh
+
+# Sensitive keys
+*.pem
+*.key

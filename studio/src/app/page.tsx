@@ -1,15 +1,17 @@
 
 "use client";
 
-import { ArrowRight, BookOpen, PlaySquare, FileText, Globe, Sparkles } from 'lucide-react';
+import { ArrowRight, BookOpen, PlaySquare, FileText, Globe, Sparkles, LogIn, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { DPISageLogo } from '@/components/DPISageLogo';
 import { QuickActions } from '@/components/QuickActions';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
   const router = useRouter();
+  const { user, signOut, loading } = useAuth();
 
   const suggestedQuestions = [
     "Does DPI mean open source?",
@@ -27,12 +29,19 @@ export default function Home() {
   ];
   
   const handleSuggestedQuestion = (question: string) => {
-    router.push(`/chat?q=${encodeURIComponent(question)}`);
+    if (user) {
+      router.push(`/chat?q=${encodeURIComponent(question)}`);
+    } else {
+      router.push(`/auth?redirect=${encodeURIComponent(`/chat?q=${encodeURIComponent(question)}`)}`);
+    }
   };
 
   const handleQuickAction = (action: string, data: any) => {
-    // Navigate to chat with a simple greeting
-    router.push(`/chat?q=${encodeURIComponent('Hi')}`);
+    if (user) {
+      router.push(`/chat?q=${encodeURIComponent('Hi')}`);
+    } else {
+      router.push('/auth?redirect=/chat');
+    }
   };
 
   return (
@@ -94,6 +103,30 @@ export default function Home() {
                   Watch & learn
                   </Button>
                 </a>
+                {!loading && (
+                  user ? (
+                    <Button
+                      onClick={async () => {
+                        await signOut();
+                        router.push('/');
+                      }}
+                      variant="outline"
+                      className="text-base"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Sign Out
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => router.push('/auth')}
+                      className="text-base"
+                      style={{background: '#4285F4'}}
+                    >
+                      <LogIn className="mr-2 h-4 w-4" />
+                      Sign In
+                    </Button>
+                  )
+                )}
             </nav>
         </div>
       </header>
@@ -153,7 +186,13 @@ export default function Home() {
                   <h2 className="text-2xl font-bold mb-3" style={{color: '#4285F4'}}>DPI Sage</h2>
                   <p className="text-muted-foreground mb-6 text-lg">Your AI assistant for DPI</p>
                   <Button
-                    onClick={() => router.push('/chat')}
+                    onClick={() => {
+                      if (user) {
+                        router.push('/chat');
+                      } else {
+                        router.push('/auth?redirect=/chat');
+                      }
+                    }}
                     className="w-full h-16 pl-8 pr-3 text-base rounded-full hover:shadow-xl transition-all duration-300 flex items-center justify-between group relative overflow-hidden"
                     style={{
                       background: '#e3f2fd',
@@ -161,8 +200,8 @@ export default function Home() {
                       color: '#64748b'
                     }}
                   >
-                    <span className="text-gray-600 text-lg">Ask anything</span>
-                    <div 
+                    <span className="text-gray-600 text-lg">{user ? 'Ask anything' : 'Sign in to ask'}</span>
+                    <div
                       className="h-12 w-12 rounded-full flex items-center justify-center text-white transition-transform group-hover:translate-x-1"
                       style={{
                         background: '#4285F4'
