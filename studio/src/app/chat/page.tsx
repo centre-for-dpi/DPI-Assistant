@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowUp, Loader, User, Code, Settings, Briefcase, Flag, Handshake, Bot, Sparkles, HelpCircle, FileText, BarChart, MessageSquare, Wand2, ChevronDown, Zap, Target, Map, Database } from 'lucide-react';
+import { ArrowUp, Loader, User, Code, Settings, Briefcase, Flag, Users, Bot, Sparkles, HelpCircle, FileText, BarChart, MessageSquare, Wand2, ChevronDown, Zap, Target, Map, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,6 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import ChatMessage from '@/components/chat/ChatMessage';
 import { DPISageLogo } from '@/components/DPISageLogo';
 import { QuickActions } from '@/components/QuickActions';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
 interface ChatResponse {
   id: string;
   sender: "assistant";
@@ -30,6 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 function ChatPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { getAccessToken } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -78,7 +81,7 @@ function ChatPage() {
     {
       id: 'Development Partner',
       name: 'Development Partner',
-      icon: Handshake,
+      icon: Users,
       description: 'Fund, advise, and build partnerships'
     }
   ];
@@ -122,10 +125,14 @@ function ChatPage() {
         text: m.text || m.answer || '',
       }));
 
-      const response = await fetch('https://us-central1-dpi-sage-2607.cloudfunctions.net/chat', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const token = await getAccessToken();
+
+      const response = await fetch(`${apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` }),
         },
         body: JSON.stringify({
           message: messageText,
@@ -163,9 +170,10 @@ function ChatPage() {
 
   const handleFeedback = async (messageId: string, feedback: 'up' | 'down') => {
     setMessages(prev => prev.map(m => m.id === messageId ? { ...m, feedback } : m));
-    
+
     try {
-      await fetch('https://us-central1-dpi-sage-2607.cloudfunctions.net/feedback', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      await fetch(`${apiUrl}/api/feedback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -497,8 +505,10 @@ function ChatPage() {
 
 export default function ChatPageWrapper() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <ChatPage />
-    </Suspense>
+    <ProtectedRoute>
+      <Suspense fallback={<div>Loading...</div>}>
+        <ChatPage />
+      </Suspense>
+    </ProtectedRoute>
   )
 }

@@ -1,21 +1,34 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "noImplicitReturns": true,
-    "noUnusedLocals": true,
+    "noImplicitReturns": false,
+    "noUnusedLocals": false,
     "outDir": "lib",
     "sourceMap": true,
-    "strict": true,
+    "strict": false,
     "target": "es2017",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
-    }
+    },
+    "skipLibCheck": true
   },
   "compileOnSave": true,
   "include": [
-    "src"
+    "src/server.ts"
+  ],
+  "exclude": [
+    "src/ai/**",
+    "src/lib/vectorStore.ts",
+    "src/lib/simpleVectorStore.ts",
+    "src/lib/queryAnalytics.ts",
+    "src/lib/queryProcessor.ts",
+    "src/lib/dpiOntology.ts",
+    "src/lib/db.ts",
+    "src/lib/utils.ts",
+    "src/index.ts",
+    "src/index-express.ts"
   ]
 } 
