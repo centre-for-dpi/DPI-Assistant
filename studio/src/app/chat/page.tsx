@@ -67,8 +67,8 @@ function ChatPage() {
       description: 'Strategic planning and project management guidance'
     },
     {
-      id: 'Country Bureaucrat',
-      name: 'Country Bureaucrat',
+      id: 'Country Officer',
+      name: 'Country Officer',
       icon: Briefcase,
       description: 'Greenlight projects adapting policy/ regulatory frameworks'
     },
