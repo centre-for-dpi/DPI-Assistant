@@ -1,0 +1,11 @@
+﻿Health
+Create Health IDs for citizens to track health records
+ BB: IDs
+ A Health ID can link all medical history in one place, even across different hospitals and clinics. This reduces the need for patients to repeatedly share their context during emergencies and ensures continuity of care. Multiple health profiles can also be created—for example, for children or dependents—making health management simpler for families.
+Build health facility registries
+ BB: Registries
+ Verified registries of hospitals, clinics, and diagnostic centres help patients discover trusted providers in their area. Doctors can use them to refer patients to accredited specialists, and insurers can confirm the legitimacy of facilities before processing claims. This improves transparency and ensures citizens receive care only from credible sources.
+Enable verifiable medical practitioner licenses and prescriptions
+ BB: Data Sharing
+ Digitally verifiable licenses confirm the qualifications of medical professionals, ensuring accurate care is delivered by accredited providers. This prevents unqualified practitioners from accessing payments or offering unsafe treatments, particularly in underserved areas. Similarly, verifiable e-prescriptions reduce forgery, drug misuse, and overdosing, while securing access to essential medicines and supplies.
+________________

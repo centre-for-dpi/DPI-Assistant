@@ -1,0 +1,29 @@
+﻿ID: 
+
+Identities help identify the ‘who’ of an individual or the ‘what’ of an object. 
+
+A ‘digital’ ID is one that provides the twin capabilities of ‘e-authentication’ and ‘e-KYC’ to multiple ecosystem entities on top of it based on user-consent. 
+
+A ‘unique’ ID is one that uses a combination of biometrics, iris scans, and other deduplication techniques to ensure that every actor is represented only once in the database. 
+
+An ID can be digital or unique or both. If ID systems currently have neither digital nor unique identifier capabilities, it is possible to build these as modular building blocks on top of the current IDs instead of rebuilding from scratch. 
+
+Foundational ID: 
+
+A foundational ID (often used interchangeably with national ID) refers to - as the name suggests - a foundational identifier of individuals in that country. 
+
+By virtue of it being ‘foundational’ it is purpose and use-case agnostic. It does not collect any sector specific data such as blood groups or marital status or employment. It collects ONLY as much data as is necessary to determine is this person who they say they are? 
+
+Foundational ID data fields can include: Name, Address, Date of Birth and Gender (yes, that’s all!) 
+
+To build a unique, digital, national foundational ID system - you must have minimal data fields, cross sectoral reuse through e-authentication and e-KYC features, and a diverse private ecosystem who can support the government in enrolling and maintaining the database at population scale. 
+
+Examples include National ID Card in Morocco,  Fayda in Ethiopia, National ID in Chile and Aadhaar in India, 
+
+Functional ID: 
+
+Each sector or organisation can include functional IDs which - as the name suggests - serves a particular function. For example, a driving license serves the function of proving you can drive, a student ID proves you are the student of a particular educational institution, a tax ID proves that you are a legitimate member of the formal financial ecosystem. 
+
+The same principle applies to functional IDs - your ID must be reusable to unlock benefits across sectors. This ensures the ID is actually useful to residents and incentivises them to take the extra effort to ensure that they are enrolled and they update it from time to time. 
+
+The functional ID should offer a ‘verifiable credential’ capability or an ‘e-authentication’ capability or both. While the former allows for independent verification by any third party by scanning a QR code embedded in the ID, the latter requires real time API verification to a list of empanelled organisations.

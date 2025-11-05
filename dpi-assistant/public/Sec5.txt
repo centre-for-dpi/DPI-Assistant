@@ -1,0 +1,11 @@
+﻿Finance
+Unlock inclusive digital payments with interoperable QR codes
+ BB: Payments
+ Governments can adopt an open-source, interoperable QR code to upgrade existing mobile money systems and foster inclusive peer-to-peer (P2P) and peer-to-merchant (P2M) payments. By separating the payments layer (retained by banks for actual fund flows) from the mobile app layer (where fintechs innovate), financial infrastructure stays secure while user experiences diversify. This creates a safer ecosystem that encourages innovation and competition in digital payments.
+Grow access to credit through digitally signed financial records
+ BB: Data Sharing
+ Bank statements, mobile wallet histories, and salary slips can be issued as digitally signed records, enabling low-cost verification and stronger credit profiles. This improves access to formal credit, lowers interest rates, and brings more citizens into the financial system. An enabling e-KYC policy ensures lenders can accept these records compliantly under AML regulations, unlocking wider adoption.
+Increase voluntary tax payments with verifiable Tax IDs
+ BB: IDs
+ Verifiable Tax IDs can prove compliance, helping citizens and businesses build trust with domestic and global partners. When paired with a public tax database, they highlight ethical and legally compliant actors, growing societal accountability for tax practices. This makes tax payments more transparent and positions them as a trust signal in business transactions.
+
