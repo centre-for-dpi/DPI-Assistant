@@ -7,7 +7,7 @@ export const contentData = [
     tags: ["Video", "PDF", "Notes"],
 
     EnglishVideoLink: "Vc.mp4",
-    EnglishPptLink: "VCpresentation.pptx",
+    EnglishPptLink: "vcUpdated.pptx",
     EnglishNotesLink: "VCpresentation.pdf",
 
     SpanishVideoLink: "Vc.mp4",
@@ -64,7 +64,7 @@ export const contentData = [
 
     EnglishVideoLink: "Id.mp4",
     EnglishNotesLink: "IDs.pdf",
-    EnglishPptLink: "IDs.pptx",
+    EnglishPptLink: "idUpdated.pptx",
 
     SpanishVideoLink: "Id.mp4",
     SpanishPptLink: "LanguagesPpt/SpaninId.pptx",
@@ -121,8 +121,8 @@ export const contentData = [
     tags: ["Video","PDF", "Notes"],
 
     EnglishVideoLink: "Cdpi.mp4",
-    EnglishNotesLink: "CDPI_DPIcore.pdf",
-    EnglishPptLink: "CDPI_DPIcore.pptx",
+    EnglishNotesLink: "dpiUpdated.pptx",
+    EnglishPptLink: "dpiUpdated.pptx",
 
     SpanishVideoLink: "Vc_Spanish.mp4",
     SpanishPptLink: "LanguagesPpt/SpainCdpi.pptx",
@@ -146,12 +146,12 @@ export const contentData = [
     {
     id: 6,
     title: "Open banking for payments and data",
-    description: "Digital Public Infrastructure (DPI) is a set of foundational digital systems that forms the backbone of modern societies!",
+    description: "Open banking uses secure APIs to allow third-party providers to access customer financial data and initiate payments",
     tags: ["Video","PDF", "Notes"],
 
-    EnglishVideoLink: "Cdpi.mp4",
-    EnglishNotesLink: "CDPI_DPIcore.pdf",
-    EnglishPptLink: "CDPI_DPIcore.pptx",
+    EnglishVideoLink: "obpd.mp4",
+    EnglishNotesLink: "obpd.pdf",
+    EnglishPptLink: "obpd.pptx",
 
     SpanishVideoLink: "Vc_Spanish.mp4",
     SpanishPptLink: "LanguagesPpt/SpainCdpi.pptx",
@@ -169,7 +169,7 @@ export const contentData = [
     BahasiaPptLink: "LanguagesPpt/BhasiaCdpi.pptx",
     BahasiaNotesLink: "LanguagePdf/BahasiaCdpi.pdf",
 
-    imageLink:"dpiImage.png"
+    imageLink:"obpd.png"
   },
 
   

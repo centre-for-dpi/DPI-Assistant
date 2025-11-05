@@ -4,7 +4,7 @@ import JargonExplainer from './JargonExplainer'
 import Footer from './Footer'
 import Learning_cards from './Learning_cards'
 import Explore from './Explore'
-
+import { Link } from 'react-router-dom'
 
 const Learning = () => {
 
@@ -71,7 +71,7 @@ const Learning = () => {
         <div className='mt-[60px] text-outfit text-center'>
           <div className='text-center md:text-[31px] text-[21px] font-outfit text-purple-600'>Learn more about DPI Deployments</div>
            <p className='font-outfit max-w-3xl mx-auto text-center mt-[17px]'>Discover Digital Public Goods available for deploying your selected DPI blocks and explore certification opportunities to enhance your implementation capabilities.</p>        
-           <button className='bg-purple-600 text-white px-4 py-2 rounded-md mt-4 font-semibold '>Explore DPGs</button>
+           <Link to="/dpi-deployment" className='bg-purple-600 text-white px-4 py-2 rounded-md mt-[30px] relative top-[20px] font-semibold  '>Explore DPGs</Link>
         </div>
          <Footer/>
       </div>

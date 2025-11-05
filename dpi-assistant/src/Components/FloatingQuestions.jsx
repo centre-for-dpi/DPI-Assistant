@@ -1,6 +1,6 @@
 import React from "react";
 
-const FloatingQuestions = () => {
+const FloatingQuestions = ({ onQuestionClick }) => {
   const questions = [
     "How much does it cost to implement DPI?",
     "Where do I even start?",
@@ -13,7 +13,6 @@ const FloatingQuestions = () => {
     "DPI x AI?",
   ];
 
-  // Shared animation
   return (
     <>
       <style>{`
@@ -39,7 +38,8 @@ const FloatingQuestions = () => {
           {[...questions, ...questions].map((q, i) => (
             <div
               key={i}
-              className="mx-3 shrink-0 whitespace-nowrap bg-purple-100 border border-purple-200 text-purple-800 font-medium rounded-full px-6 py-2 shadow hover:shadow-md transition-all duration-200"
+              onClick={() => onQuestionClick && onQuestionClick(q)}
+              className="mx-3 shrink-0 whitespace-nowrap bg-purple-100 border border-purple-200 text-purple-800 font-medium rounded-full px-6 py-2 shadow hover:shadow-md transition-all duration-200 cursor-pointer"
             >
               {q}
             </div>
@@ -57,7 +57,8 @@ const FloatingQuestions = () => {
           {[...questions, ...questions].map((q, i) => (
             <div
               key={i}
-              className="mx-3 shrink-0 whitespace-nowrap bg-purple-50 border border-purple-200 text-purple-700 font-medium rounded-full px-6 py-2 shadow hover:shadow-md transition-all duration-200"
+              onClick={() => onQuestionClick && onQuestionClick(q)}
+              className="mx-3 shrink-0 whitespace-nowrap bg-purple-50 border border-purple-200 text-purple-700 font-medium rounded-full px-6 py-2 shadow hover:shadow-md transition-all duration-200 cursor-pointer"
             >
               {q}
             </div>

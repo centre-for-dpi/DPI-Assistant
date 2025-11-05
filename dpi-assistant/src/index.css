@@ -7,3 +7,22 @@ body {
   font-family: 'Inter', sans-serif;
   background-color: #f9f9fb;
 }
+
+/* Custom purple scrollbar only for right section */
+.scroll-purple::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scroll-purple::-webkit-scrollbar-track {
+  background: #f3e8ff; /* light purple tone */
+}
+
+.scroll-purple::-webkit-scrollbar-thumb {
+  background-color: #9333ea; /* Tailwind's purple-600 */
+  border-radius: 9999px;
+}
+
+.scroll-purple::-webkit-scrollbar-thumb:hover {
+  background-color: #7e22ce; /* purple-700 on hover */
+}
+

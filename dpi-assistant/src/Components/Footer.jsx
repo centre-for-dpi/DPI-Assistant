@@ -13,12 +13,12 @@ const Footer = () => {
 
           <div className="flex items-center gap-2 mb-3">
             <img
-              src="image61.png"
+              src="https://cdpi-media.s3.amazonaws.com/image61.png"
               alt="cdpi logo"
               className="w-[80px] h-[74px] object-contain filter invert"
             />
             <img
-              src="iiitb.png"
+              src="https://cdpi-media.s3.amazonaws.com/iiitb.png"
               alt="itb logo"
               className="w-[80px] h-[74px]"
             />
