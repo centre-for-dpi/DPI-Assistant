@@ -1,0 +1,40 @@
+# Backend API Server (replaces Firebase Functions)
+FROM node:18-alpine AS base
+
+# Install dependencies
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# Copy backend package.json
+COPY functions/package*.json ./
+RUN npm install
+
+# Build stage
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY functions/ .
+
+# Build TypeScript to JavaScript
+RUN npm run build
+
+# Production stage
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy built application and dependencies
+COPY --from=builder /app/lib ./lib
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/src/content ./content
+
+USER nextjs
+
+EXPOSE 8080
+
+CMD ["node", "lib/server.js"]
