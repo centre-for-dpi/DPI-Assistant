@@ -3,85 +3,96 @@ import { Linkedin, Instagram, X, Youtube } from "lucide-react";
 
 const Footer = () => {
   return (
-    <footer className="bg-white border-t border-gray-200 mt-12">
-      <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col lg:flex-row justify-between gap-10">
-        {/* Left Section */}
-        <div className="flex-1">
-          <h3 className="text-lg font-semibold mb-2">
-            Centre for Digital <br /> Public Infrastructure
-          </h3>
-
-          <div className="flex items-center gap-2 mb-3">
+    <footer className="bg-white text-black border-t border-gray-300">
+      {/* Top section */}
+      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between px-6 md:px-10 py-10 gap-10">
+        {/* Left side */}
+        <div className="flex flex-col max-w-[600px]">
+          <div className="flex items-start gap-4 mb-5">
             <img
-              src="https://cdpi-media.s3.amazonaws.com/image61.png"
-              alt="cdpi logo"
-              className="w-[80px] h-[74px] object-contain filter invert"
+              src="cdpil.png"
+              alt="CDPI Logo"
+              className="w-[58px] h-[58px] object-contain"
             />
-            <img
-              src="https://cdpi-media.s3.amazonaws.com/iiitb.png"
-              alt="itb logo"
-              className="w-[80px] h-[74px]"
-            />
+            <div className="text-[15px] leading-snug font-medium">
+              Centre for Digital <br /> Public Infrastructure
+            </div>
           </div>
 
-          <p className="text-sm text-gray-600 leading-relaxed">
-            26/C, Hosur Rd, Electronic City Phase I, <br />
-            Electronic City, Bengaluru, Karnataka 560100
-          </p>
+          <img
+            src="https://cdpi-media.s3.amazonaws.com/iiitb.png"
+            alt="IIITB Logo"
+            className="w-[70px] h-auto mb-5"
+          />
 
-          <p className="text-sm text-gray-600 mt-2">
+          <div className="text-[14px] leading-relaxed text-gray-800">
+            26/C, Hosur Rd, Electronic City Phase I, Electronic City, Bengaluru,
+            Karnataka 560100
+          </div>
+          <div className="text-[14px] mt-2 text-gray-800">
             info@cdpi.dev | +91 99800 44477
-          </p>
+          </div>
 
-          <p className="text-sm text-gray-600 mt-4">
+          <hr className="border-gray-300 mt-6 mb-4 w-full sm:w-[90%]" />
+
+          <div className="text-[14px] text-gray-800 mb-4">
             Follow us on social media to stay on top of the latest news and
             insights from CDPI
-          </p>
+          </div>
 
-          <div className="flex gap-4 mt-3">
-            <a href="#" className="text-gray-700 hover:text-purple-600">
+          <div className="flex gap-5 flex-wrap">
+            <a href="#" className="text-black hover:opacity-70">
               <Linkedin size={18} />
             </a>
-            <a href="#" className="text-gray-700 hover:text-purple-600">
+            <a href="#" className="text-black hover:opacity-70">
               <Instagram size={18} />
             </a>
-            <a href="#" className="text-gray-700 hover:text-purple-600">
+            <a href="#" className="text-black hover:opacity-70">
               <X size={18} />
             </a>
-            <a href="#" className="text-gray-700 hover:text-purple-600">
+            <a href="#" className="text-black hover:opacity-70">
               <Youtube size={18} />
             </a>
           </div>
         </div>
 
-        {/* Right Section */}
-        <div className="flex flex-col sm:flex-row gap-12">
-          <div>
-            <h4 className="font-semibold mb-3">Navigation</h4>
-            <ul className="space-y-2 text-sm text-gray-600">
-              <li><a href="#" className="hover:text-purple-600 my-8">Home</a></li>
-              <li><a href="#" className="hover:text-purple-600 my-8">Learning</a></li>
-              <li><a href="#" className="hover:text-purple-600 my-8">DPG Deployment</a></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-3">Resources</h4>
-            <ul className="space-y-2 text-sm text-gray-600">
-              <li><a href="#" className="hover:text-purple-600">Read</a></li>
-              <li><a href="#" className="hover:text-purple-600">Learn</a></li>
-              <li><a href="#" className="hover:text-purple-600">Build</a></li>
-            </ul>
-          </div>
+        {/* Right side */}
+        <div className="flex flex-col text-left sm:text-right sm:items-end justify-start flex-shrink-0">
+          <h3 className="font-semibold text-[15px] mb-3 sm:mb-4">Resources</h3>
+          <ul className="space-y-3 text-[14px] text-black">
+            <li>
+              <a href="#" className="hover:opacity-70">
+                Read
+              </a>
+            </li>
+            <li>
+              <a href="#" className="hover:opacity-70">
+                Learn
+              </a>
+            </li>
+            <li>
+              <a href="#" className="hover:opacity-70">
+                Build
+              </a>
+            </li>
+          </ul>
         </div>
       </div>
 
-      {/* Bottom Section */}
-      <div className="border-t border-gray-200 text-center py-5 text-sm text-gray-600 flex flex-col sm:flex-row justify-center gap-5">
-        <a href="#" className="hover:text-purple-600">Terms of Use</a>
-        <a href="#" className="hover:text-purple-600">Privacy Policy</a>
-        <a href="#" className="hover:text-purple-600">Cookie Preference</a>
-        <a href="#" className="hover:text-purple-600">Site map</a>
+      {/* Bottom bar */}
+      <div className="border-t border-gray-300 py-5 px-4 flex flex-col sm:flex-row flex-wrap justify-center items-center gap-3 sm:gap-5 text-[13px] text-gray-700 text-center">
+        <a href="#" className="hover:opacity-70">
+          Terms of Use
+        </a>
+        <a href="#" className="hover:opacity-70">
+          Privacy Policy
+        </a>
+        <a href="#" className="hover:opacity-70">
+          Cookie Preference
+        </a>
+        <a href="#" className="hover:opacity-70">
+          Site map
+        </a>
       </div>
     </footer>
   );

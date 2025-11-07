@@ -5,7 +5,7 @@ const FloatingQuestions = ({ onQuestionClick }) => {
     "How much does it cost to implement DPI?",
     "Where do I even start?",
     "How can DPI help with financial inclusion?",
-    "What are some examples of successful DPIs?",
+    "Give me sample slides in French I can use for ID authentication",
     "Give an example technical scope for a DPI implementation?",
     "How do I identify the right DPI in my country?",
     "Do I need all ministries’ buy-in and a roadmap to start?",

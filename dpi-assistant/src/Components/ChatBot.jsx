@@ -178,12 +178,11 @@ const ChatBot = forwardRef((_, ref) => {
           />
         </div>
         <div className="mx-auto text-[24px] md:text-[64px] lg:text-[50px] font-semibold md:max-w-md lg:max-w-3xl text-center">
-          Ask <span className="text-purple-600">CDPI's AI Assistant</span>
+          Ask your <span className="text-purple-600">  DPI AI Assistant</span>
         </div>
         <p className="text-[16px] mx-auto text-center md:text-[25px] lg:text-[22px] lg:max-w-5xl">
-          An interactive tool designed for global government officials to
-          understand, adopt, and implement DPI for societal-scale
-          transformation.
+           An interactive tool for you to better understand and implement DPI in your nations. <br />
+          Ask in English, French, Spanish, Portuguese, or other languages!
         </p>
         <div className="flex gap-[20px] md:ml-[30px] md:mt-[15px]">
           <textarea
