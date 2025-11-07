@@ -11,6 +11,9 @@ const Explore = () => {
   const [sectorIntro, setSectorIntro] = useState("");
   const [sectorBBs, setSectorBBs] = useState([]);
 
+  // new states for language + notes
+  const [selectedLanguage, setSelectedLanguage] = useState("english");
+
   const selectedSector = sectorList.find((s) => s.id === Number(selectedSectorId));
   const selectedDpi = dpiBlocks.find((d) => d.id === Number(selectedDpiId));
 
@@ -65,6 +68,18 @@ const Explore = () => {
       setSectorBBs([]);
     }
   }, [selectedSector]);
+
+  // build the notes download URL
+  const getNotesUrl = () => {
+    if (!selectedSector) return "#";
+    const sectorName = selectedSector.title.toLowerCase().replace(/\s+/g, "");
+    const lang = selectedLanguage.toLowerCase();
+    if (lang === "english") {
+      return `https://cdpi-media.s3.amazonaws.com/${sectorName}.pdf`;
+    } else {
+      return `https://cdpi-media.s3.amazonaws.com/${lang}_${sectorName}.pdf`;
+    }
+  };
 
   return (
     <section className="py-12 px-4 md:px-8 text-center mt-8">
@@ -167,10 +182,34 @@ const Explore = () => {
                   </p>
 
                   <button className="mt-3 text-xs font-semibold text-purple-600 hover:text-purple-800 transition-all">
-                    View more → 
+                    View more →
                   </button>
                 </div>
               ))}
+            </div>
+
+            {/* Language + Notes Download Section */}
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <select
+                value={selectedLanguage}
+                onChange={(e) => setSelectedLanguage(e.target.value)}
+                className="border border-gray-300 rounded-md px-4 py-2 text-base font-outfit focus:outline-none focus:ring-2 focus:ring-purple-400"
+              >
+                <option value="english">English</option>
+                <option value="bahasa">Bahasa</option>
+                <option value="portuguese">Portuguese</option>
+                <option value="spanish">Spanish</option>
+                <option value="french">French</option>
+              </select>
+
+              <a
+                href={getNotesUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-2 rounded-md transition-all"
+              >
+                Notes
+              </a>
             </div>
           </>
         )}
