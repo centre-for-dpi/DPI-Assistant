@@ -9,7 +9,7 @@ const Animated_Logo2 = () => {
       animationData={logoAnimation}
       loop
       autoplay
-      className="mx-auto w-[85px] h-[85px] mt-[15px] md:w-[150px] md:h-[150px] lg:w-[100px] lg:h-[100px] md:mt-[29px]"
+      className="mx-auto w-[65px] h-[65px] mt-[15px] md:w-[150px] md:h-[150px] lg:w-[100px] lg:h-[100px] md:mt-[29px]"
     />
   );
 };

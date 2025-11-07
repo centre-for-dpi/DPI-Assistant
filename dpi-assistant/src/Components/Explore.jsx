@@ -7,17 +7,13 @@ const Explore = () => {
   const [selectedDpiId, setSelectedDpiId] = useState(null);
   const [modalItem, setModalItem] = useState(null);
 
-  // new state for sector content
   const [sectorIntro, setSectorIntro] = useState("");
   const [sectorBBs, setSectorBBs] = useState([]);
-
-  // new states for language + notes
-  const [selectedLanguage, setSelectedLanguage] = useState("english");
+  const [selectedLanguage, setSelectedLanguage] = useState({});
 
   const selectedSector = sectorList.find((s) => s.id === Number(selectedSectorId));
   const selectedDpi = dpiBlocks.find((d) => d.id === Number(selectedDpiId));
 
-  // Fetch and parse sector content from public folder
   useEffect(() => {
     if (selectedSector?.contentFile) {
       fetch(`/${selectedSector.contentFile}`)
@@ -34,17 +30,14 @@ const Explore = () => {
 
           for (let i = 2; i < lines.length; i++) {
             const line = lines[i];
-
-            // Detect BB line
             if (line.startsWith("BB:")) {
               if (currentBB) bbData.push(currentBB);
               currentBB = {
                 bbTitle: line.replace("BB:", "").trim(),
                 bbContent: "",
-                bbIntro: "", // new intro line
+                bbIntro: "",
               };
 
-              // Look one line above for intro text (if valid)
               if (i > 0 && lines[i - 1] && !lines[i - 1].startsWith("BB:")) {
                 currentBB.bbIntro = lines[i - 1].trim();
               }
@@ -54,7 +47,6 @@ const Explore = () => {
           }
 
           if (currentBB) bbData.push(currentBB);
-
           setSectorIntro(intro);
           setSectorBBs(bbData);
         })
@@ -63,22 +55,48 @@ const Explore = () => {
           setSectorBBs([]);
         });
     } else {
-      // reset when unselected
       setSectorIntro("");
       setSectorBBs([]);
     }
   }, [selectedSector]);
 
-  // build the notes download URL
-  const getNotesUrl = () => {
-    if (!selectedSector) return "#";
-    const sectorName = selectedSector.title.toLowerCase().replace(/\s+/g, "");
-    const lang = selectedLanguage.toLowerCase();
-    if (lang === "english") {
-      return `https://cdpi-media.s3.amazonaws.com/${sectorName}.pdf`;
+  // ✅ Helper for sector notes URLs
+  const getNotesUrl = (sectorTitle, language) => {
+    if (!sectorTitle) return "#";
+    let sectorName = sectorTitle
+      .replace(/\s+/g, "")
+      .replace(/[^a-zA-Z]/g, "");
+
+    if (sectorName.toLowerCase() === "digitaltransformation") {
+      sectorName = "digitalTransformation";
     } else {
-      return `https://cdpi-media.s3.amazonaws.com/${lang}_${sectorName}.pdf`;
+      sectorName = sectorName.toLowerCase();
     }
+
+    const lang = language?.toLowerCase() || "english";
+    return lang === "english"
+      ? `https://cdpi-media.s3.amazonaws.com/${sectorName}.pdf`
+      : `https://cdpi-media.s3.amazonaws.com/${lang}_${sectorName}.pdf`;
+  };
+
+  // ✅ Helper for DPI block notes URLs
+  const getDpiNotesUrl = (dpiTitle, language) => {
+    if (!dpiTitle) return "#";
+    const lang = language?.toLowerCase() || "english";
+
+    const mapping = {
+      Registries: "registries",
+      "Functional ID": "id",
+      "Data Sharing": "vc",
+      Payments: "obpd",
+    };
+
+    const key = mapping[dpiTitle] || "";
+    if (!key) return "#";
+
+    return lang === "english"
+      ? `https://cdpi-media.s3.amazonaws.com/${key}.pdf`
+      : `https://cdpi-media.s3.amazonaws.com/${lang}_${key}.pdf`;
   };
 
   return (
@@ -95,7 +113,7 @@ const Explore = () => {
 
       {/* Selection Section */}
       <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10 mt-10">
-        {/* Sector */}
+        {/* Sector Dropdown */}
         <div className="flex flex-col items-center w-full md:w-[360px]">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-lg md:text-xl font-outfit font-semibold text-gray-800">
@@ -123,7 +141,7 @@ const Explore = () => {
           OR
         </div>
 
-        {/* DPI Block */}
+        {/* DPI Dropdown */}
         <div className="flex flex-col items-center w-full md:w-[360px]">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-lg md:text-xl font-outfit font-semibold text-gray-800">
@@ -148,7 +166,7 @@ const Explore = () => {
         </div>
       </div>
 
-      {/* Cards Section */}
+      {/* Sector Cards */}
       <div className="max-w-6xl mx-auto mt-12 px-4">
         {selectedSector && sectorIntro && (
           <>
@@ -157,79 +175,109 @@ const Explore = () => {
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-              {sectorBBs.map((bb, index) => (
-                <div
-                  key={index}
-                  className="bg-white shadow-md hover:shadow-lg transition rounded-lg p-6 text-left cursor-pointer border border-gray-100"
-                  onClick={() => setModalItem(bb)}
-                >
-                  {/* Intro line before BB */}
-                  {bb.bbIntro && (
-                    <p className="text-sm text-gray-600 mb-3 italic leading-snug">
-                      {bb.bbIntro}
+              {sectorBBs.map((bb, index) => {
+                const language = selectedLanguage[index] || "english";
+                const notesUrl = getNotesUrl(selectedSector.title, language);
+
+                return (
+                  <div
+                    key={index}
+                    className="bg-white shadow-md hover:shadow-lg transition rounded-lg p-6 text-left border border-gray-100"
+                  >
+                    {bb.bbIntro && (
+                      <p className="text-sm text-gray-600 mb-3 italic leading-snug">
+                        {bb.bbIntro}
+                      </p>
+                    )}
+
+                    <h4 className="font-semibold font-outfit text-lg text-purple-700 mb-2 flex items-center gap-2">
+                      <img
+                        src="https://cdpi-media.s3.amazonaws.com/image.png"
+                        alt=""
+                        className="h-5 w-5"
+                      />
+                      {bb.bbTitle}
+                    </h4>
+
+                    <p className="text-sm text-gray-700 font-outfit line-clamp-3 mb-4">
+                      {bb.bbContent.slice(0, 150)}...
                     </p>
-                  )}
 
-                  {/* BB Title */}
-                  <h4 className="font-semibold font-outfit text-lg text-purple-700 mb-2 flex items-center gap-2">
-                    <img src="https://cdpi-media.s3.amazonaws.com/image.png" alt="" className="h-5 w-5" />
-                    {bb.bbTitle}
-                  </h4>
+                    <div className="flex flex-col sm:flex-row items-center gap-3">
+                      <select
+                        value={language}
+                        onChange={(e) =>
+                          setSelectedLanguage({
+                            ...selectedLanguage,
+                            [index]: e.target.value,
+                          })
+                        }
+                        className="border border-gray-300 rounded-md px-3 py-2 text-sm font-outfit focus:outline-none focus:ring-2 focus:ring-purple-400 w-full sm:w-auto"
+                      >
+                        <option value="english">English</option>
+                        <option value="bahasa">Bahasa</option>
+                        <option value="portuguese">Portuguese</option>
+                        <option value="spanish">Spanish</option>
+                        <option value="french">French</option>
+                      </select>
 
-                  {/* BB Content */}
-                  <p className="text-sm text-gray-700 font-outfit line-clamp-3">
-                    {bb.bbContent.slice(0, 150)}...
-                  </p>
-
-                  <button className="mt-3 text-xs font-semibold text-purple-600 hover:text-purple-800 transition-all">
-                    View more →
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* Language + Notes Download Section */}
-            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <select
-                value={selectedLanguage}
-                onChange={(e) => setSelectedLanguage(e.target.value)}
-                className="border border-gray-300 rounded-md px-4 py-2 text-base font-outfit focus:outline-none focus:ring-2 focus:ring-purple-400"
-              >
-                <option value="english">English</option>
-                <option value="bahasa">Bahasa</option>
-                <option value="portuguese">Portuguese</option>
-                <option value="spanish">Spanish</option>
-                <option value="french">French</option>
-              </select>
-
-              <a
-                href={getNotesUrl()}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-2 rounded-md transition-all"
-              >
-                Notes
-              </a>
+                      <a
+                        href={notesUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold px-4 py-2 rounded-md transition-all w-full sm:w-auto text-center"
+                      >
+                        Notes
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
 
-        {/* DPI Selected */}
+        {/* DPI Block Cards */}
         {!selectedSector && selectedDpi && (
-          <div className="bg-white shadow-md hover:shadow-lg transition rounded-lg p-6 text-left">
-            <h3 className="font-semibold font-outfit text-lg md:text-xl">
-              {selectedDpi.title}
-            </h3>
-            <p className="text-sm md:text-base font-outfit text-gray-600 mt-2 mb-4">
-              {selectedDpi.shortDesc}
-            </p>
-            <button
-              onClick={() => setModalItem(selectedDpi)}
-              className="text-purple-600 font-semibold hover:underline"
-            >
-              Learn more →
-            </button>
-          </div>
+          <>
+            <div className="bg-white shadow-md hover:shadow-lg transition rounded-lg p-6 text-left border border-gray-100">
+              <h3 className="font-semibold font-outfit text-lg md:text-xl text-purple-700">
+                {selectedDpi.title}
+              </h3>
+              <p className="text-sm md:text-base font-outfit text-gray-600 mt-2 mb-4">
+                {selectedDpi.shortDesc}
+              </p>
+
+              {/* Language + Notes for DPI */}
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <select
+                  value={selectedLanguage[selectedDpi.id] || "english"}
+                  onChange={(e) =>
+                    setSelectedLanguage({
+                      ...selectedLanguage,
+                      [selectedDpi.id]: e.target.value,
+                    })
+                  }
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm font-outfit focus:outline-none focus:ring-2 focus:ring-purple-400 w-full sm:w-auto"
+                >
+                  <option value="english">English</option>
+                  <option value="bahasa">Bahasa</option>
+                  <option value="portuguese">Portuguese</option>
+                  <option value="spanish">Spanish</option>
+                  <option value="french">French</option>
+                </select>
+
+                <a
+                  href={getDpiNotesUrl(selectedDpi.title, selectedLanguage[selectedDpi.id])}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold px-4 py-2 rounded-md transition-all w-full sm:w-auto text-center"
+                >
+                  Notes
+                </a>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
