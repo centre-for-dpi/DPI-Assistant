@@ -1,60 +1,366 @@
-import React from "react";
+import React, {
+  useState,
+  forwardRef,
+  useImperativeHandle,
+  useEffect,
+  useRef,
+} from "react";
+import { sendChatMessage, sendFeedback } from "../services/api";
+import { ThumbsUp, ThumbsDown } from "lucide-react";
+import Animated_Logo2 from "./Animated_Logo2";
 
-const ChatBot = () => {
-  return (
-    <section className="pt-8 px-4 w-full">
-      <div className="max-w-full mx-auto border border-gray-200 lg:border-none rounded-xl bg-white flex flex-col justify-between px-[20px] py-[20px] lg:h-[440px]">
-        <div className="p-4 flex flex-col justify-start items-start space-y-3 flex-grow bg-gray-100 rounded-lg">
-          <div className="flex items-start space-x-3">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-full flex justify-center items-center p-1 shrink-0">
-              <img src="dpiass.png" alt="" />
-            </div>
-            <div className="max-w-lg bg-white rounded-xl p-3 text-gray-800 text-xs md:text-sm shadow-sm font-outfit">
-              Hello! I'm  CDPI AI  , your Digital Public Infrastructure assistant.
-              Ask me anything about  DPI implementation  ,  best practices  , or
-                sector-specific guidance  .
-            </div>
-          </div>
+const ChatBot = forwardRef((_, ref) => {
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [persona] = useState("Default");
+  const messagesEndRef = useRef(null);
 
-          <div className="w-full flex justify-end pt-2 pr-0 md:pr-4">
-            <div className="space-y-2 w-full max-w-sm">
-              <div className="w-full bg-white border border-purple-400 rounded-lg p-2 text-xs text-gray-800 cursor-pointer transition duration-150 ease-in-out hover:bg-purple-50 font-outfit">
-                Provide an example of a policy that supports the adoption of DPI
-              </div>
-              <div className="w-full bg-white border border-purple-400 rounded-lg p-2 text-xs text-gray-800 cursor-pointer transition duration-150 ease-in-out hover:bg-purple-50 font-outfit">
-                Summarize the impact of  Estonia's X-Road   on  e-governance  
-              </div>
-              <div className="w-full bg-white border border-purple-400 rounded-lg p-2 text-xs text-gray-800 cursor-pointer transition duration-150 ease-in-out hover:bg-purple-50 font-outfit">
-                Explain the concept of  interoperability  
-              </div>
-              <div className="w-full bg-white border border-purple-400 rounded-lg p-2 text-xs text-gray-800 cursor-pointer transition duration-150 ease-in-out hover:bg-purple-50 font-outfit">
-                Difference between  Digital Public Infrastructure   and{" "}
-                 traditional IT infrastructure  
-              </div>
-            </div>
-          </div>
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Expose method to parent (Home)
+  useImperativeHandle(ref, () => ({
+    handleExternalQuestion(question) {
+      handleSendMessage(question);
+    },
+  }));
+
+  const handleSendMessage = async (messageText) => {
+    const textToSend = messageText || input;
+    if (!textToSend.trim()) return;
+
+    // Create user message
+    const userMessage = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      sender: "user",
+      text: textToSend,
+      timestamp: Date.now(),
+    };
+
+    // Add user message and clear input
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setIsLoading(true);
+
+    try {
+      // Prepare chat history for API
+      const chatHistoryForApi = messages.map((m) => ({
+        sender: m.sender,
+        text: m.text || m.answer || "",
+      }));
+
+      // Call the API
+      const response = await sendChatMessage(textToSend, chatHistoryForApi, persona);
+
+      // Create assistant message from response
+      const assistantMessage = {
+        id: response.id,
+        sender: "assistant",
+        answer: response.answer,
+        sources: response.sources,
+        suggestedDPIs: response.suggestedDPIs,
+        reasoning: response.reasoning,
+        error: response.error,
+        timestamp: response.timestamp,
+        feedback: null,
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      // Create error message
+      const errorMessage = {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        sender: "assistant",
+        error: `Failed to get response: ${error.message}. Make sure the backend server is running.`,
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFeedback = async (messageId, feedbackType) => {
+    // Update local state immediately
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId ? { ...m, feedback: feedbackType } : m
+      )
+    );
+
+    try {
+      await sendFeedback(messageId, feedbackType);
+    } catch (error) {
+      console.error("Failed to submit feedback:", error);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  // 🚀 SUPER ENHANCED THINKING COMPONENT
+  const AICognition = () => {
+    const thinkingPhrases = [
+      "Analyzing your query...",
+      "Scanning DPI knowledge base...",
+      "Connecting insights across domains...",
+      "Formulating an intelligent response...",
+    ];
+    const [currentPhrase, setCurrentPhrase] = useState(0);
+
+    useEffect(() => {
+      const interval = setInterval(() => {
+        setCurrentPhrase((prev) => (prev + 1) % thinkingPhrases.length);
+      }, 1600);
+      return () => clearInterval(interval);
+    }, []);
+
+    return (
+      <div className="flex flex-col gap-3 items-start w-full relative  ">
+        {/* Glowing circular logo animation */}
+        <div className="relative flex items-center justify-center">
+          <div className="absolute w-10 h-10 rounded-full  blur-md animate-pulse"></div>
+          <img src="https://cdpi-media.s3.amazonaws.com/logo_svg.svg" alt="" className="w-8 h-8 relative z-10" />
         </div>
 
-        <div className="p-3 md:p-4 pt-0 border-t border-gray-100 mt-4">
-          <div className="flex items-center w-full border border-gray-300 rounded-lg shadow-md overflow-hidden">
-            <input
-              type="text"
-              placeholder="Type your question...."
-              className="flex-grow p-3 text-gray-700 text-sm outline-none border-none font-outfit"
+        {/* Wave loader */}
+        <div className="relative w-[160px] h-[6px] overflow-hidden rounded-full bg-purple-100">
+          <div className="absolute inset-0  bg-gradient-to-r from-fuchsia-50 to-purple-100 animate-[wave_2s_linear_infinite]" />
+        </div>
+
+        {/* Changing phrase */}
+        <p className="text-xs text-gray-600 italic mt-1 animate-fadeIn">
+          {thinkingPhrases[currentPhrase]}
+        </p>
+
+        <style jsx>{`
+          @keyframes wave {
+            0% {
+              transform: translateX(-100%);
+            }
+            100% {
+              transform: translateX(100%);
+            }
+          }
+          @keyframes fadeIn {
+            from {
+              opacity: 0;
+            }
+            to {
+              opacity: 1;
+            }
+          }
+        `}</style>
+      </div>
+    );
+  };
+
+  // INITIAL UI (no messages yet)
+  if (messages.length === 0) {
+    return (
+      <div className="lg:max-w-[1212px] font-outfit lg:h-[472px] md:max-w-[706px] md:h-[680px] max-w-[327px] h-[389px] mx-auto flex flex-col bg-gradient-to-r from-fuchsia-50 to-purple-100 items-start gap-4 px-6">
+        <div className="bg-white w-[101px] h-[101px] md:w-[214px] md:h-[214px] lg:w-[164px] lg:h-[164px] mx-auto mt-[20px] rounded-full flex-shrink-0">
+          <Animated_Logo2
+            src="logo_svg.svg"
+            className="mx-auto w-[71px] h-[71px] mt-[15px] md:w-[150px] md:h-[150px] lg:w-[100px] lg:h-[100px] md:mt-[29px]"
+            alt=""
+          />
+        </div>
+        <div className="mx-auto text-[24px] md:text-[64px] lg:text-[50px] font-semibold md:max-w-md lg:max-w-3xl text-center">
+          Ask <span className="text-purple-600">CDPI's AI Assistant</span>
+        </div>
+        <p className="text-[16px] mx-auto text-center md:text-[25px] lg:text-[22px] lg:max-w-5xl">
+          An interactive tool designed for global government officials to
+          understand, adopt, and implement DPI for societal-scale
+          transformation.
+        </p>
+        <div className="flex gap-[20px] md:ml-[30px] md:mt-[15px]">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="w-[213px] h-[56px] md:w-[526px] md:h-[47px] rounded-[10px] lg:w-[850px] lg:ml-[100px] md:text-[20px] border-black text-[13px] p-2 resize-none overflow-hidden placeholder:text-gray-500"
+            placeholder="Type your question here or start with a prompt below..."
+          />
+          <button
+            onClick={() => handleSendMessage()}
+            className="w-[45px] h-[45px] bg-purple-500 rounded-full md:mb-[25px] hover:bg-purple-700 hover:scale-110 transition-transform"
+            type="button"
+          >
+            <img
+              className="w-[25px] h-[25px] mx-auto relative left-[2px]"
+              src="https://cdpi-media.s3.amazonaws.com/Sent.png"
+              alt="Send"
             />
-            <button className="bg-none hover:bg-purple-700 p-3 shrink-0 transition duration-150 ease-in-out">
-              <img src="Frame78.png" className="h-[30px] w-[30px]" alt="" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // CHAT MODE
+  return (
+    <div className="font-outfit bg-gradient-to-r from-fuchsia-50 to-purple-100 px-6 py-6 lg:max-w-[1212px] mx-auto rounded-2xl">
+      <div className="bg-white rounded-2xl shadow-sm flex flex-col min-h-[500px] max-h-[700px]">
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${
+                message.sender === "user" ? "justify-end" : "justify-start"
+              }`}
+            >
+              <div
+                className={`max-w-[80%] ${
+                  message.sender === "user"
+                    ? "bg-purple-50 border border-purple-200 rounded-2xl px-4 py-2"
+                    : "flex flex-col gap-2"
+                }`}
+              >
+                {message.sender === "user" ? (
+                  <p className="text-sm text-gray-800">{message.text}</p>
+                ) : (
+                  <>
+                    <div className="flex items-start gap-3">
+                      <img
+                        src="https://cdpi-media.s3.amazonaws.com/logo_svg.svg"
+                        alt="DPI Assistant"
+                        className="w-8 h-8 flex-shrink-0"
+                      />
+                      <div className="flex-1">
+                        {message.error ? (
+                          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+                            {message.error}
+                          </div>
+                        ) : message.answer ? (
+                          <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                              {message.answer}
+                            </p>
+                            {message.sources && message.sources.length > 0 && (
+                              <div className="mt-3 pt-3 border-t border-gray-200">
+                                <p className="text-xs text-gray-500 font-semibold mb-1">
+                                  Sources:
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {message.sources.map((source, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full"
+                                    >
+                                      {source}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : message.suggestedDPIs ? (
+                          <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                            <p className="text-sm text-gray-700 mb-3">
+                              {message.reasoning}
+                            </p>
+                            <div className="space-y-2">
+                              {message.suggestedDPIs.map((dpi, idx) => (
+                                <div
+                                  key={idx}
+                                  className="bg-white border border-purple-100 rounded-lg p-3"
+                                >
+                                  <h4 className="font-semibold text-purple-700 text-sm mb-1">
+                                    {dpi.name}
+                                  </h4>
+                                  <p className="text-xs text-gray-600">
+                                    {dpi.relevance}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {/* Feedback buttons */}
+                        {!message.error && (
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              onClick={() => handleFeedback(message.id, "up")}
+                              className={`p-1 rounded hover:bg-gray-100 transition ${
+                                message.feedback === "up" ? "text-green-600" : "text-gray-400"
+                              }`}
+                            >
+                              <ThumbsUp className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleFeedback(message.id, "down")}
+                              className={`p-1 rounded hover:bg-gray-100 transition ${
+                                message.feedback === "down" ? "text-red-600" : "text-gray-400"
+                              }`}
+                            >
+                              <ThumbsDown className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Loading indicator */}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="flex items-start gap-3">
+                <img
+                  src="https://cdpi-media.s3.amazonaws.com/logo_svg.svg"
+                  alt="DPI Assistant"
+                  className="w-8 h-8"
+                />
+                <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                  <AICognition />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input Area */}
+        <div className="border-t border-gray-200 p-4">
+          <div className="flex gap-3 items-end">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="flex-1 min-h-[45px] max-h-[120px] rounded-lg text-sm p-3 resize-none border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder:text-gray-400"
+              placeholder="Type your question..."
+              rows={1}
+            />
+            <button
+              onClick={() => handleSendMessage()}
+              disabled={isLoading || !input.trim()}
+              className="w-[45px] h-[45px] bg-purple-500 rounded-full hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all flex justify-center items-center flex-shrink-0"
+            >
+              <img
+                src="https://cdpi-media.s3.amazonaws.com/Sent.png"
+                alt="Send"
+                className="w-5 h-5"
+              />
             </button>
           </div>
         </div>
       </div>
-
-      <p className="my-[30px] mx-auto md:max-w-md text-center sm:max-w-sm text-neutral-500">
-        Get instant answers about Digital Public Infrastructure implementation, best practices, and
-        sector-specific guidance.
-      </p>
-    </section>
+    </div>
   );
-};
+});
 
 export default ChatBot;

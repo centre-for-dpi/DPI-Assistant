@@ -21,7 +21,7 @@ const JargonExplainer = () => {
   return (
     <div className="text-center font-outfit px-4">
       {/* Title and Description */}
-      <div className="font-outfit md:text-[31px] text-[21px] font-semibold mt-[80px] text-purple-600">
+      <div className="font-outfit md:text-[31px] text-[21px] font-semibold  text-purple-600">
         DPI Jargon Explainer
       </div>
       <p className="max-w-xl mx-auto mt-[20px] text-gray-700">

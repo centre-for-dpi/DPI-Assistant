@@ -14,7 +14,7 @@ const Learning_cards = () => {
     setSelectedLanguage(e.target.value);
   };
 
-  // Mapping of language codes to full language names (for property matching)
+  // Mapping of language codes to full language names
   const languageMap = {
     en: "English",
     sa: "Spanish",
@@ -23,9 +23,16 @@ const Learning_cards = () => {
     bh: "Bahasa",
   };
 
+  // Mapping of types to data property suffixes
+  const typeMap = {
+    Notes: "Notes",
+    Presentation: "Ppt",
+    Video: "Video",
+  };
+
   return (
     <div className="text-center font-outfit px-4">
-      {/* Selection Section */}
+      {/* Header */}
       <div className="lg:text-[20px] md:text-[17px] sm:text-[15px]">
         Choose the content type you would like to see
       </div>
@@ -73,13 +80,11 @@ const Learning_cards = () => {
         </div>
       )}
 
-      {/* Cards */}
+      {/* Cards Section */}
       <div className="flex mt-[30px] gap-[40px] lg:gap-[100px] max-w-7xl justify-center flex-wrap mb-[50px]">
         {contentData.map((item) => {
-          // Build dynamic property name based on selection
           const languageName = languageMap[selectedLanguage];
-          const propertyName = `${languageName}${selectedType}Link`; // e.g. "SpanishPptLink"
-
+          const propertyName = `${languageName}${typeMap[selectedType]}Link`;
           const link = item[propertyName];
 
           return (
@@ -87,7 +92,7 @@ const Learning_cards = () => {
               key={item.id}
               className="max-w-[300px] bg-white overflow-hidden border border-gray-200"
             >
-              {/* Image placeholder */}
+              {/* Image */}
               <div className="bg-gray-100 flex justify-center items-center h-40">
                 <img
                   src={item.imageLink}
@@ -98,17 +103,15 @@ const Learning_cards = () => {
 
               {/* Card Content */}
               <div className="p-5">
-                {/* Title */}
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   {item.title}
                 </h3>
 
-                {/* Description */}
                 <p className="text-sm text-gray-600 mb-4">
                   {item.description}
                 </p>
 
-                {/* Buttons or Not Available */}
+                {/* Buttons or "Not Available" */}
                 {selectedType ? (
                   link ? (
                     <div className="flex gap-3 flex-wrap">

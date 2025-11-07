@@ -1,0 +1,10 @@
+﻿Digital Transformation
+Create an e-wallet and issuance model for digitally signed credentials by any department
+ BB: Data Sharing
+ Digitally signed credentials ensure all documents, certificates, and records across ministries remain tamper-proof and reusable. Building a shared issuance model that allows any government to submit their data, have it converted into digitally verifiable credentials and then reissued through their own processes as well as an e-wallet application allows for data empowerment at scale. This reduces paperwork, verification costs, and builds reusable data rails in the country.
+Build authentication and e-KYC rails over any foundational or functional ID
+ BB: IDs
+ Foundational or functional IDs can be enhanced with authentication and e-KYC features, making them directly valuable to citizens. This also enables single sign-on (SSO), reduces duplication of efforts, and improves efficiency across systems. By delivering real benefits, such capabilities increase voluntary adoption of IDs and strengthen trust in digital governance.
+Build ID–account mappers for G2P payments
+ BB: Payments
+ A universal ID–account mapper allows any government department to transfer benefits directly to citizens’ chosen bank accounts or wallets. This creates one shared disbursal rail while keeping assessment criteria independent. Citizens no longer need to track multiple accounts, making government-to-person payments simpler, faster, and more reliable.

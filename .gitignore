@@ -139,10 +139,6 @@ weather/
 main.py
 server.js
 requirements*.txt
-package.json
-package-lock.json
-docker-compose.yml
-Dockerfile*
 *.py
 qr_analyzer.py
 rag_system.py

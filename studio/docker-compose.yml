@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # Frontend (Next.js static export)
+  frontend:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backend API (Node.js Express replacement for Firebase Functions)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      platforms:
+        - linux/amd64
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
+      - AWS_REGION=${AWS_REGION:-ap-south-1}
+      - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
+    volumes:
+      - ./functions/src/content:/app/content:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  default:
+    name: dpi-sage-network

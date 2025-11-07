@@ -1,0 +1,7 @@
+ <div className="bg-white w-[101px] h-[101px] md:w-[214px] md:h-[214px] lg:w-[164px] lg:h-[164px] mx-auto mt-[20px] rounded-full flex-shrink-0">
+          <Animated_Logo
+            className="mx-auto w-[71px] h-[71px] mt-[15px] md:w-[150px] md:h-[150px] lg:w-[100px] lg:h-[100px] md:mt-[29px]"
+            alt=""
+          />
+          <div className="w-[100px] h-[10px] md:h-[15px] bg-white relative lg:left-[62px] lg:bottom-[15px] bottom-[10px] md:ml-[110px] md:bottom-[17px] lg:ml-[0px]  overflow-hidden"></div>
+        </div>
