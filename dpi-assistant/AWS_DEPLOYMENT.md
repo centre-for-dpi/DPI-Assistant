@@ -1,6 +1,6 @@
 # DPI Assistant - AWS EC2 Deployment Guide
 
-This guide explains how to deploy the DPI Assistant frontend and backend to AWS EC2, replacing the existing Studio frontend.
+This guide explains how to deploy the DPI Assistant frontend and backend to AWS EC2.
 
 ## Overview
 
@@ -8,13 +8,6 @@ The DPI Assistant deployment consists of:
 - **Frontend**: React + Vite application served via Nginx (port 80/443)
 - **Backend**: Node.js/Express API without authentication (port 8080)
 - Both services deployed as Docker containers on EC2
-
-## Key Changes from Studio
-
-1. **Frontend**: New React/Vite UI (dpi-assistant) replaces Next.js Studio frontend
-2. **Backend**: Authentication removed - API endpoints are publicly accessible
-3. **SSL**: Configured for existing Let's Encrypt certificates at assistant.cdpi.dev
-4. **Ports**: Same as Studio - Frontend on 80/443, Backend on 8080
 
 ## Prerequisites
 

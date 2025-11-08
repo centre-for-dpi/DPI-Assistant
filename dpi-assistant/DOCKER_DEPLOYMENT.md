@@ -1,12 +1,12 @@
 # DPI Assistant - Docker Deployment Guide
 
-This guide explains how to deploy the DPI Assistant frontend using Docker, replacing the Studio frontend while maintaining the same ports and backend infrastructure.
+This guide explains how to deploy the DPI Assistant using Docker.
 
 ## Overview
 
-The DPI Assistant is a React application built with Vite that serves as the frontend interface for the DPI Sage system. This Docker setup:
-- Serves the frontend on port 3000 (same as the original Studio frontend)
-- Uses the existing Studio backend on port 8080
+The DPI Assistant is a full-stack application consisting of a React frontend built with Vite and an Express.js backend. This Docker setup:
+- Serves the frontend on port 3000
+- Serves the backend API on port 8080
 - Provides nginx proxy for API requests
 - Maintains all security headers and compression settings
 
@@ -15,7 +15,6 @@ The DPI Assistant is a React application built with Vite that serves as the fron
 - Docker and Docker Compose installed
 - Google AI API key
 - AWS Cognito configuration (User Pool ID)
-- Access to the Studio backend source code (in `../studio`)
 
 ## Configuration
 
@@ -70,7 +69,7 @@ docker-compose ps
    - Includes health check endpoint at `/health`
 
 2. **Backend Service**
-   - Uses the existing Studio backend (Node.js/Express)
+   - Express.js backend with Google Generative AI integration
    - Runs on port 8080
    - Provides `/chat` and `/feedback` endpoints
    - Requires Google AI API key and AWS Cognito configuration
@@ -144,18 +143,6 @@ If port 3000 or 8080 is already in use:
 - Use strong, unique values for all API keys and credentials
 - Regularly update dependencies for security patches
 - Consider using Docker secrets for production deployments
-
-## Replacing Studio Frontend
-
-This deployment replaces the Studio frontend while maintaining:
-- Same port (3000)
-- Same backend service
-- Same API endpoints
-- Compatible nginx configuration
-
-To completely replace Studio:
-1. Stop the Studio services: `cd ../studio && docker-compose down`
-2. Start DPI Assistant services: `cd ../dpi-assistant && docker-compose up -d --build`
 
 ## Production Considerations
 

@@ -6,7 +6,9 @@ node_modules/
 .next/
 out/
 dist/
+dist-ssr/
 build/
+*.local
 
 # Environment variables
 .env
@@ -14,6 +16,7 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.production
 
 # Firebase
 .firebase/
@@ -21,10 +24,16 @@ firebase-debug.log
 .firebaserc
 
 # IDE files
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
 # OS generated files
 .DS_Store
@@ -36,10 +45,13 @@ ehthumbs.db
 Thumbs.db
 
 # Logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # Runtime data
 pids
@@ -65,9 +77,6 @@ jspm_packages/
 # Yarn Integrity file
 .yarn-integrity
 
-# Next.js
-.next
-
 # Nuxt.js
 .nuxt
 
@@ -79,74 +88,9 @@ jspm_packages/
 tmp/
 temp/
 
-# Editor directories and files
-.idea
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
 # Cache directories
 .cache/
 
-# User-specific files
-*~
-
 # Generated files
-studio/functions/lib/
+dpi-assistant/backend/lib/
 *.map
-
-# PDF files (if they're temporary)
-*.pdf
-
-# Large media files
-*.mov
-*.mp4
-*.avi
-
-# Personal files
-.CFUserTextEncoding
-.zsh_history
-.zsh_sessions/
-.npm/
-.config/
-.local/
-.cache/
-.cursor/
-.claude/
-.claude.json*
-.streamlit/
-.gitconfig
-.profile
-.zprofile
-.zshrc
-.node_repl_history
-
-# macOS
-Applications/
-Desktop/
-Documents/
-Library/
-Movies/
-Music/
-Pictures/
-Public/
-
-# Project specific
-dpi-frontend/
-weather/
-main.py
-server.js
-requirements*.txt
-*.py
-qr_analyzer.py
-rag_system.py
-setup_and_run.py
-git_setup.sh
-deploy_to_github.py
-data_ingestion_pipeline.py
-dpi_assistant_*.py
-dpi_documents/
-driving_license_temp.py
-README*.md
