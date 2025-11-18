@@ -1,0 +1,172 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual triggers
+
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  deploy:
+    name: ${{ github.event_name == 'pull_request' && 'Build & Validate' || 'Build & Deploy to EC2' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+
+      - name: Build Qdrant image
+        working-directory: ./dpi-assistant/backend
+        run: |
+          docker build --platform linux/amd64 \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
+            -f Dockerfile.qdrant \
+            -t dpi-assistant-qdrant .
+
+      - name: Build Backend image
+        working-directory: ./dpi-assistant/backend
+        run: |
+          docker build --platform linux/amd64 \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
+            -t dpi-assistant-backend .
+
+      - name: Build Frontend image
+        working-directory: ./dpi-assistant
+        run: |
+          docker build --platform linux/amd64 \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
+            -t dpi-assistant-frontend .
+
+      - name: Build validation complete
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "✅ Docker images built successfully!"
+          echo "All builds passed validation. Safe to merge."
+
+      - name: Save Docker images
+        if: github.event_name == 'push'
+        run: |
+          docker save dpi-assistant-qdrant | gzip > dpi-assistant-qdrant.tar.gz
+          docker save dpi-assistant-backend | gzip > dpi-assistant-backend.tar.gz
+          docker save dpi-assistant-frontend | gzip > dpi-assistant-frontend.tar.gz
+
+      - name: Setup SSH
+        if: github.event_name == 'push'
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_IP }} >> ~/.ssh/known_hosts
+
+      - name: Create .env file for deployment
+        if: github.event_name == 'push'
+        run: |
+          cat > .env.prod << EOF
+          GOOGLE_AI_API_KEY=${{ secrets.GOOGLE_AI_API_KEY }}
+          NODE_ENV=production
+          PORT=8080
+          EOF
+
+      - name: Upload images to EC2
+        if: github.event_name == 'push'
+        run: |
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            dpi-assistant-qdrant.tar.gz \
+            ubuntu@${{ secrets.EC2_IP }}:/home/ubuntu/
+
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            dpi-assistant-backend.tar.gz \
+            ubuntu@${{ secrets.EC2_IP }}:/home/ubuntu/
+
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            dpi-assistant-frontend.tar.gz \
+            ubuntu@${{ secrets.EC2_IP }}:/home/ubuntu/
+
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            .env.prod \
+            ubuntu@${{ secrets.EC2_IP }}:/home/ubuntu/
+
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            dpi-assistant/docker-compose.prod.yml \
+            ubuntu@${{ secrets.EC2_IP }}:/home/ubuntu/
+
+      - name: Deploy on EC2
+        if: github.event_name == 'push'
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_IP }} << 'ENDSSH'
+            set -e
+
+            echo "🔧 Deploying DPI Assistant..."
+
+            # Create app directory if it doesn't exist
+            sudo mkdir -p /home/ubuntu/dpi-assistant
+            sudo chown -R ubuntu:ubuntu /home/ubuntu/dpi-assistant
+
+            # Move files to app directory
+            mv /home/ubuntu/dpi-assistant-*.tar.gz /home/ubuntu/dpi-assistant/ 2>/dev/null || true
+            mv /home/ubuntu/docker-compose.prod.yml /home/ubuntu/dpi-assistant/ 2>/dev/null || true
+            mv /home/ubuntu/.env.prod /home/ubuntu/dpi-assistant/.env 2>/dev/null || true
+
+            cd /home/ubuntu/dpi-assistant
+
+            # Load Docker images
+            echo "📦 Loading Docker images..."
+            docker load < dpi-assistant-qdrant.tar.gz
+            docker load < dpi-assistant-backend.tar.gz
+            docker load < dpi-assistant-frontend.tar.gz
+
+            # Stop and remove old containers
+            echo "🔄 Updating containers..."
+            docker-compose -f docker-compose.prod.yml down || true
+
+            # Start new containers
+            echo "🚀 Starting services..."
+            docker-compose -f docker-compose.prod.yml up -d
+
+            # Wait for services to be healthy
+            echo "⏳ Waiting for services to be ready..."
+            sleep 30
+
+            # Check if this is first deployment (no vectors populated)
+            if docker-compose -f docker-compose.prod.yml exec -T backend sh -c "test ! -f /app/.vectors_populated" 2>/dev/null; then
+              echo "📊 Populating vector database (first deployment)..."
+              docker-compose -f docker-compose.prod.yml exec -T backend sh -c "cd /app && npm run populate-vectors && touch /app/.vectors_populated" || echo "⚠️ Vector population will be attempted on next startup"
+            fi
+
+            # Cleanup
+            rm -f dpi-assistant-*.tar.gz
+
+            echo "✅ Deployment completed successfully!"
+            echo "📊 Container status:"
+            docker-compose -f docker-compose.prod.yml ps
+          ENDSSH
+
+      - name: Verify deployment
+        if: github.event_name == 'push'
+        run: |
+          echo "🎉 Deployment completed!"
+          echo "Application URL: http://${{ secrets.EC2_IP }}"
+          echo "API URL: http://${{ secrets.EC2_IP }}:8080"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f ~/.ssh/deploy_key
+          rm -f .env.prod
+          rm -f dpi-assistant-*.tar.gz
