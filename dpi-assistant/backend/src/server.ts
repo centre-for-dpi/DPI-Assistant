@@ -4,6 +4,8 @@ import { randomUUID } from 'crypto';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as fs from 'fs';
 import * as path from 'path';
+import { VectorStore } from './services/vectorStore';
+import { EmbeddingService } from './utils/embeddings';
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -32,7 +34,43 @@ app.use(express.json());
 const apiKey = process.env.GOOGLE_AI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// Load knowledge base
+// Initialize Vector Store and Embedding Service
+// Dynamic Qdrant URL configuration:
+// - Local dev: http://localhost:6333 (default)
+// - Docker Compose: http://qdrant:6333 (use service name)
+// - Production: https://your-cluster.qdrant.io:6333 (Qdrant Cloud)
+const qdrantUrl = process.env.QDRANT_URL || 'http://localhost:6333';
+const useVectorSearch = process.env.USE_VECTOR_SEARCH !== 'false'; // Default to true
+let vectorStore: VectorStore | null = null;
+let embeddingService: EmbeddingService | null = null;
+
+// Initialize vector services if enabled
+async function initializeVectorServices() {
+  if (!useVectorSearch) {
+    console.log('⚠️  Vector search disabled');
+    return;
+  }
+
+  try {
+    vectorStore = new VectorStore(qdrantUrl);
+    embeddingService = new EmbeddingService(apiKey);
+
+    // Check if collection exists
+    const collectionInfo = await vectorStore.getCollectionInfo();
+    if (collectionInfo) {
+      console.log(`✅ Vector store connected: ${collectionInfo.points_count} vectors`);
+    } else {
+      console.log('⚠️  Vector store collection not found. Run: npm run populate-vectors');
+    }
+  } catch (error) {
+    console.error('⚠️  Vector store connection failed:', error);
+    console.log('   Falling back to full knowledge base mode');
+    vectorStore = null;
+    embeddingService = null;
+  }
+}
+
+// Load knowledge base - NOW LOADS ALL FILES COMPLETELY
 function loadKnowledgeBase(): string {
   try {
     const kbPath = path.join(__dirname, '..', 'content', 'knowledge-base');
@@ -44,6 +82,7 @@ function loadKnowledgeBase(): string {
     const files = fs.readdirSync(kbPath);
     let knowledgeBase = '';
 
+    // Priority files loaded first
     const priorityFiles = [
       '[DPI GPT assistant] Strategy notes + context compilation.md',
       '[DPI GPT assistant] - Africa Strategy notes + context compilation (1).md',
@@ -52,6 +91,7 @@ function loadKnowledgeBase(): string {
       'G2P Connect.md'
     ];
 
+    // Load priority files
     for (const priorityFile of priorityFiles) {
       if (files.includes(priorityFile)) {
         const content = fs.readFileSync(path.join(kbPath, priorityFile), 'utf-8');
@@ -59,6 +99,7 @@ function loadKnowledgeBase(): string {
       }
     }
 
+    // Load all other markdown files
     for (const file of files) {
       if (file.endsWith('.md') && !priorityFiles.includes(file)) {
         const content = fs.readFileSync(path.join(kbPath, file), 'utf-8');
@@ -66,6 +107,7 @@ function loadKnowledgeBase(): string {
       }
     }
 
+    console.log(`✅ Knowledge base loaded: ${files.filter(f => f.endsWith('.md')).length} files, ${knowledgeBase.length} characters`);
     return knowledgeBase;
   } catch (error) {
     console.error('Error loading knowledge base:', error);
@@ -75,15 +117,112 @@ function loadKnowledgeBase(): string {
 
 const knowledgeBase = loadKnowledgeBase();
 
+// Load prompt templates - LOADS ALL PROMPTS
+function loadPromptTemplate(filename: string): string {
+  try {
+    const promptPath = path.join(__dirname, '..', 'content', 'prompts', filename);
+    if (!fs.existsSync(promptPath)) {
+      console.warn(`⚠️  Prompt template not found: ${filename}`);
+      return '';
+    }
+    const content = fs.readFileSync(promptPath, 'utf-8');
+    console.log(`✅ Loaded prompt template: ${filename} (${content.length} characters)`);
+    return content;
+  } catch (error) {
+    console.error(`❌ Error loading prompt template ${filename}:`, error);
+    return '';
+  }
+}
+
+// Template variable replacement - Supports {{{variable}}} and {{#if}} syntax
+function replaceTemplateVariables(template: string, variables: Record<string, string>): string {
+  let result = template;
+
+  // Handle {{{variable}}} syntax (triple braces)
+  for (const [key, value] of Object.entries(variables)) {
+    const tripleRegex = new RegExp(`\\{\\{\\{${key}\\}\\}\\}`, 'g');
+    result = result.replace(tripleRegex, value || '');
+  }
+
+  // Handle {{#if variable}}...{{/if}} conditional blocks
+  result = result.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, varName, content) => {
+    return variables[varName] ? content : '';
+  });
+
+  return result;
+}
+
+// Load all prompt templates at startup
+const answerPromptTemplate = loadPromptTemplate('answer-dpi-questions-prompt.md');
+const suggestDPIsPromptTemplate = loadPromptTemplate('suggest-relevant-dpis-prompt.md');
+const summarizeDocumentPromptTemplate = loadPromptTemplate('summarize-documents-prompt.md');
+
+// Create Gemini model
+function createModel() {
+  return genAI.getGenerativeModel({ model: 'models/gemini-2.5-flash' });
+}
+
+// Retrieve relevant context using vector search or fallback to full KB
+async function retrieveContext(query: string): Promise<string> {
+  // If vector search is available, use it
+  if (vectorStore && embeddingService) {
+    try {
+      const queryEmbedding = await embeddingService.generateEmbedding(query);
+      const results = await vectorStore.search(queryEmbedding, 10, 0.65);
+
+      if (results.length > 0) {
+        const context = results
+          .map(result => `[Source: ${result.metadata.source}]\n${result.text}`)
+          .join('\n\n---\n\n');
+
+        console.log(`🔍 Vector search: Found ${results.length} relevant chunks`);
+        return context;
+      }
+    } catch (error) {
+      console.error('Vector search error, falling back to full KB:', error);
+    }
+  }
+
+  // Fallback: Use first 100KB of knowledge base
+  console.log('📚 Using full knowledge base (limited to 100KB)');
+  return knowledgeBase.substring(0, 100000);
+}
+
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'healthy', timestamp: Date.now() });
+app.get('/health', async (req, res) => {
+  let vectorStoreStatus = 'disabled';
+  let vectorCount = 0;
+
+  if (vectorStore) {
+    try {
+      const info = await vectorStore.getCollectionInfo();
+      vectorStoreStatus = info ? 'connected' : 'not_initialized';
+      vectorCount = info?.points_count || 0;
+    } catch {
+      vectorStoreStatus = 'error';
+    }
+  }
+
+  res.json({
+    status: 'healthy',
+    timestamp: Date.now(),
+    knowledgeBaseSize: knowledgeBase.length,
+    vectorStore: {
+      status: vectorStoreStatus,
+      vectors: vectorCount
+    },
+    promptsLoaded: {
+      answer: answerPromptTemplate.length > 0,
+      suggest: suggestDPIsPromptTemplate.length > 0,
+      summarize: summarizeDocumentPromptTemplate.length > 0
+    }
+  });
 });
 
-// Chat endpoint (NO AUTHENTICATION REQUIRED)
+// Main chat endpoint - Uses answer-dpi-questions-prompt.md
 app.post('/chat', async (req, res) => {
   try {
-    const { message, chatHistoryArray } = req.body;
+    const { message, chatHistoryArray, persona } = req.body;
 
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'Message is required' });
@@ -93,9 +232,12 @@ app.post('/chat', async (req, res) => {
       return res.status(500).json({ error: 'API key not configured' });
     }
 
-    const model = genAI.getGenerativeModel({ model: 'models/gemini-2.5-flash' });
+    // Use the sophisticated prompt if available, fallback to simple prompt
+    if (!answerPromptTemplate) {
+      return res.status(500).json({ error: 'Answer prompt template not loaded' });
+    }
 
-    // Build context
+    // Build chat history
     let chatHistory = '';
     if (chatHistoryArray && Array.isArray(chatHistoryArray)) {
       chatHistory = chatHistoryArray
@@ -103,82 +245,115 @@ app.post('/chat', async (req, res) => {
         .join('\n');
     }
 
-    const prompt = `You are DPI Sage, an AI assistant specialized in Digital Public Infrastructure (DPI).
+    // Retrieve relevant context using vector search or fallback
+    const relevantContext = await retrieveContext(message);
 
-Context from Knowledge Base:
-${knowledgeBase.substring(0, 30000)}
+    // Replace template variables
+    const prompt = replaceTemplateVariables(answerPromptTemplate, {
+      question: message,
+      knowledgeBase: relevantContext,
+      chatHistory: chatHistory,
+      persona: persona || ''
+    });
 
-${chatHistory ? `Previous conversation:\n${chatHistory}\n\n` : ''}
-
-User question: ${message}
-
-Instructions:
-- Provide a helpful, accurate response about Digital Public Infrastructure in plain text
-- If the answer is in the knowledge base, reference it naturally in your response
-- If not, provide general guidance based on DPI principles
-- Do NOT use any markdown formatting whatsoever in your response
-- Do NOT include a "Sources", "References", or "Related Material" section
-- Do NOT repeat the user's question in your response
-- Do NOT include examples of questions or prompts at the end
-- Keep your answer concise, clear, and in plain text format only`;
-
+    // Create model instance
+    const model = createModel();
     const result = await model.generateContent(prompt);
     const response = result.response;
-    const rawAnswer = response.text();
-
-    // Clean the response to remove markdown and unwanted content
-    const answer = cleanResponse(rawAnswer);
+    const answer = response.text();
 
     res.json({
       id: randomUUID(),
       sender: 'assistant',
       answer,
+      sources: [], // Sources hidden as requested
       timestamp: Date.now(),
     });
   } catch (error) {
     console.error('Error in chat endpoint:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: String(error) });
   }
 });
 
-// Function to clean response from markdown and unwanted content
-function cleanResponse(text: string): string {
-  let cleaned = text;
+// DPI Suggestions endpoint - Uses suggest-relevant-dpis-prompt.md
+app.post('/suggest-dpis', async (req, res) => {
+  try {
+    const { useCase, context, country } = req.body;
 
-  // Remove sources/references sections completely
-  cleaned = cleaned.replace(/(?:Sources?|References?|Related Materials?|Further Reading):\s*\n[\s\S]*?(?=\n\n|$)/gi, '');
+    if (!useCase || typeof useCase !== 'string') {
+      return res.status(400).json({ error: 'Use case is required' });
+    }
 
-  // Remove markdown headings (###, ##, #)
-  cleaned = cleaned.replace(/^#{1,6}\s+/gm, '');
+    if (!apiKey) {
+      return res.status(500).json({ error: 'API key not configured' });
+    }
 
-  // Remove bold markdown (**text** or __text__)
-  cleaned = cleaned.replace(/\*\*(.*?)\*\*/g, '$1');
-  cleaned = cleaned.replace(/__(.*?)__/g, '$1');
+    if (!suggestDPIsPromptTemplate) {
+      return res.status(500).json({ error: 'DPI suggestions prompt template not loaded' });
+    }
 
-  // Remove italic markdown (*text* or _text_) - but be careful not to break lists
-  cleaned = cleaned.replace(/\b\*(.*?)\*\b/g, '$1');
-  cleaned = cleaned.replace(/\b_(.*?)_\b/g, '$1');
+    // Replace template variables
+    const prompt = replaceTemplateVariables(suggestDPIsPromptTemplate, {
+      useCase: useCase,
+      additionalContext: context || '',
+      countryContext: country || '',
+      knowledgeBase: knowledgeBase
+    });
 
-  // Remove markdown lists (- or * at start of line)
-  cleaned = cleaned.replace(/^[\-\*]\s+/gm, '');
+    const model = createModel();
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const rawAnswer = response.text();
 
-  // Remove code blocks (```...```)
-  cleaned = cleaned.replace(/```[\s\S]*?```/g, '');
+    res.json({
+      id: randomUUID(),
+      suggestions: rawAnswer,
+      timestamp: Date.now(),
+    });
+  } catch (error) {
+    console.error('Error in suggest-dpis endpoint:', error);
+    res.status(500).json({ error: 'Internal server error', details: String(error) });
+  }
+});
 
-  // Remove inline code (`...`)
-  cleaned = cleaned.replace(/`([^`]+)`/g, '$1');
+// Document Summarization endpoint - Uses summarize-documents-prompt.md
+app.post('/summarize', async (req, res) => {
+  try {
+    const { documentContent, documentTitle } = req.body;
 
-  // Remove markdown links [text](url)
-  cleaned = cleaned.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
+    if (!documentContent || typeof documentContent !== 'string') {
+      return res.status(400).json({ error: 'Document content is required' });
+    }
 
-  // Remove ONLY trailing example/question sections (at the end of response)
-  cleaned = cleaned.replace(/\n\n(?:Example|Examples|Question|Questions):\s*[\s\S]*$/gi, '');
+    if (!apiKey) {
+      return res.status(500).json({ error: 'API key not configured' });
+    }
 
-  // Clean up excessive newlines
-  cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+    if (!summarizeDocumentPromptTemplate) {
+      return res.status(500).json({ error: 'Summarize prompt template not loaded' });
+    }
 
-  return cleaned.trim();
-}
+    // Replace template variables
+    const prompt = replaceTemplateVariables(summarizeDocumentPromptTemplate, {
+      documentContent: documentContent,
+      documentTitle: documentTitle || 'Untitled Document'
+    });
+
+    const model = createModel();
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const summary = response.text();
+
+    res.json({
+      id: randomUUID(),
+      summary,
+      timestamp: Date.now(),
+    });
+  } catch (error) {
+    console.error('Error in summarize endpoint:', error);
+    res.status(500).json({ error: 'Internal server error', details: String(error) });
+  }
+});
 
 // Feedback endpoint (NO AUTHENTICATION REQUIRED)
 app.post('/feedback', (req, res) => {
@@ -188,8 +363,23 @@ app.post('/feedback', (req, res) => {
 });
 
 // Start server
-app.listen(port, () => {
-  console.log(`DPI Sage backend running on port ${port}`);
-  console.log(`Knowledge base loaded: ${knowledgeBase.length} characters`);
-  console.log(`⚠️  WARNING: Running without authentication`);
-});
+async function startServer() {
+  // Initialize vector services
+  await initializeVectorServices();
+
+  app.listen(port, () => {
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`🚀 DPI Sage backend running on port ${port}`);
+    console.log(`${'='.repeat(60)}`);
+    console.log(`📚 Knowledge Base: ${knowledgeBase.length.toLocaleString()} characters`);
+    console.log(`📝 Prompts Loaded:`);
+    console.log(`   - answer-dpi-questions: ${answerPromptTemplate ? '✅' : '❌'} (${answerPromptTemplate.length} chars)`);
+    console.log(`   - suggest-relevant-dpis: ${suggestDPIsPromptTemplate ? '✅' : '❌'} (${suggestDPIsPromptTemplate.length} chars)`);
+    console.log(`   - summarize-documents: ${summarizeDocumentPromptTemplate ? '✅' : '❌'} (${summarizeDocumentPromptTemplate.length} chars)`);
+    console.log(`🔍 Retrieval: ${vectorStore ? 'Vector Search (Semantic)' : 'Full KB (Limited to 100KB)'}`);
+    console.log(`⚠️  WARNING: Running without authentication`);
+    console.log(`${'='.repeat(60)}\n`);
+  });
+}
+
+startServer();

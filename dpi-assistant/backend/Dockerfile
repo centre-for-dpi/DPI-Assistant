@@ -1,42 +1,43 @@
-# Backend API Server for DPI Assistant (No Authentication)
-FROM node:18-alpine AS base
+# Multi-stage build for production
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig.json ./
 
 # Install dependencies
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-
-# Copy backend package.json
-COPY package*.json ./
 RUN npm ci
 
-# Build stage
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+# Copy source code
+COPY src ./src
+COPY content ./content
 
-# Build TypeScript to JavaScript
+# Build TypeScript
 RUN npm run build
 
 # Production stage
-FROM base AS runner
+FROM node:18-alpine
+
 WORKDIR /app
 
-ENV NODE_ENV=production
+# Copy package files
+COPY package*.json ./
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nodejs
+# Install production dependencies only
+RUN npm ci --only=production
 
-# Copy built application and dependencies
+# Copy built application from builder
 COPY --from=builder /app/lib ./lib
-COPY --from=builder /app/node_modules ./node_modules
-
-# Copy content from studio functions
 COPY --from=builder /app/content ./content
 
-USER nodejs
-
+# Expose port
 EXPOSE 8080
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:8080/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Run the application
 CMD ["node", "lib/server.js"]

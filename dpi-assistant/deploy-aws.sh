@@ -44,17 +44,22 @@ fi
 
 echo -e "${YELLOW}🔨 Building Docker images for amd64 architecture (no cache)...${NC}"
 
+# Build Qdrant with curl for health checks
+echo -e "${YELLOW}Building Qdrant (vector database)...${NC}"
+docker build --no-cache --platform linux/amd64 -f ./backend/Dockerfile.qdrant -t dpi-assistant-qdrant ./backend
+
+# Build backend from dpi-assistant/backend (no auth required)
+echo -e "${YELLOW}Building backend (with vector search)...${NC}"
+docker build --no-cache --platform linux/amd64 -t dpi-assistant-backend ./backend
+
 # Build frontend from dpi-assistant
 echo -e "${YELLOW}Building frontend...${NC}"
 docker build --no-cache --platform linux/amd64 -t dpi-assistant-frontend .
 
-# Build backend from dpi-assistant/backend (no auth required)
-echo -e "${YELLOW}Building backend (no authentication)...${NC}"
-docker build --no-cache --platform linux/amd64 -t dpi-assistant-backend ./backend
-
 echo -e "${YELLOW}💾 Saving Docker images...${NC}"
-docker save dpi-assistant-frontend | gzip > dpi-assistant-frontend.tar.gz
+docker save dpi-assistant-qdrant | gzip > dpi-assistant-qdrant.tar.gz
 docker save dpi-assistant-backend | gzip > dpi-assistant-backend.tar.gz
+docker save dpi-assistant-frontend | gzip > dpi-assistant-frontend.tar.gz
 
 echo -e "${YELLOW}📤 Uploading files to EC2...${NC}"
 
@@ -106,11 +111,18 @@ cd /home/ubuntu/dpi-assistant
 docker-compose -f docker-compose.prod.yml down 2>/dev/null || true
 
 echo "📦 Loading Docker images..."
-docker load < dpi-assistant-frontend.tar.gz
+docker load < dpi-assistant-qdrant.tar.gz
 docker load < dpi-assistant-backend.tar.gz
+docker load < dpi-assistant-frontend.tar.gz
 
 echo "🚀 Starting application..."
 docker-compose -f docker-compose.prod.yml up -d
+
+echo "⏳ Waiting for services to be healthy..."
+sleep 30
+
+echo "📊 Populating vector database (this may take a few minutes)..."
+docker-compose -f docker-compose.prod.yml exec -T backend sh -c "cd /app && npm run populate-vectors" || echo "⚠️ Vector population failed. You may need to run it manually."
 
 echo "✅ DPI Assistant deployment completed!"
 echo "🌐 Application should be available at: http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)"
@@ -122,6 +134,7 @@ chmod +x setup-ec2.sh
 
 # Upload files to EC2
 echo -e "${YELLOW}📂 Copying files to EC2...${NC}"
+scp -i "$SSH_KEY_PATH" dpi-assistant-qdrant.tar.gz ubuntu@$EC2_IP:/home/ubuntu/
 scp -i "$SSH_KEY_PATH" dpi-assistant-frontend.tar.gz ubuntu@$EC2_IP:/home/ubuntu/
 scp -i "$SSH_KEY_PATH" dpi-assistant-backend.tar.gz ubuntu@$EC2_IP:/home/ubuntu/
 scp -i "$SSH_KEY_PATH" docker-compose.prod.yml ubuntu@$EC2_IP:/home/ubuntu/
@@ -135,7 +148,7 @@ ssh -i "$SSH_KEY_PATH" ubuntu@$EC2_IP 'bash setup-ec2.sh'
 
 # Cleanup local files
 echo -e "${YELLOW}🧹 Cleaning up local files...${NC}"
-rm -f dpi-assistant-frontend.tar.gz dpi-assistant-backend.tar.gz setup-ec2.sh .env.prod
+rm -f dpi-assistant-qdrant.tar.gz dpi-assistant-frontend.tar.gz dpi-assistant-backend.tar.gz setup-ec2.sh .env.prod
 
 echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
 echo ""
