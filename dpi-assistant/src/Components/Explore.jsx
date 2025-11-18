@@ -14,9 +14,10 @@ const Explore = () => {
   const selectedSector = sectorList.find((s) => s.id === Number(selectedSectorId));
   const selectedDpi = dpiBlocks.find((d) => d.id === Number(selectedDpiId));
 
+  // Fetch Sector text from S3
   useEffect(() => {
     if (selectedSector?.contentFile) {
-      fetch(`/${selectedSector.contentFile}`)
+      fetch(selectedSector.contentFile)
         .then((res) => res.text())
         .then((text) => {
           const lines = text
@@ -60,7 +61,7 @@ const Explore = () => {
     }
   }, [selectedSector]);
 
-  // ✅ Helper for sector notes URLs
+  // Helper for sector notes URLs
   const getNotesUrl = (sectorTitle, language) => {
     if (!sectorTitle) return "#";
     let sectorName = sectorTitle
@@ -79,7 +80,7 @@ const Explore = () => {
       : `https://cdpi-media.s3.amazonaws.com/${lang}_${sectorName}.pdf`;
   };
 
-  // ✅ Helper for DPI block notes URLs
+  // Helper for DPI notes URLs
   const getDpiNotesUrl = (dpiTitle, language) => {
     if (!dpiTitle) return "#";
     const lang = language?.toLowerCase() || "english";
@@ -107,26 +108,20 @@ const Explore = () => {
 
       <p className="mt-4 md:mt-6 font-outfit text-base md:text-lg leading-relaxed text-gray-700 max-w-3xl mx-auto">
         Select a sector to explore relevant Digital Public Infrastructure blocks and
-        <br className="hidden md:inline" />
         discover implementation strategies tailored to your needs.
       </p>
 
-      {/* Selection Section */}
+      {/* Dropdowns */}
       <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10 mt-10">
-        {/* Sector Dropdown */}
         <div className="flex flex-col items-center w-full md:w-[360px]">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-lg md:text-xl font-outfit font-semibold text-gray-800">
-              Sector
-            </span>
-          </div>
+          <span className="text-lg md:text-xl font-outfit font-semibold text-gray-800 mb-2">Sector</span>
           <select
             value={selectedSectorId ?? ""}
             onChange={(e) => {
               setSelectedSectorId(e.target.value);
               setSelectedDpiId(null);
             }}
-            className="border border-gray-300 w-full rounded-md h-12 px-4 text-base font-outfit focus:outline-none focus:ring-2 focus:ring-purple-400"
+            className="border border-gray-300 w-full rounded-md h-12 px-4 text-base font-outfit focus:ring-2 focus:ring-purple-400"
           >
             <option value="">Choose a sector</option>
             {sectorList.map((sector) => (
@@ -137,24 +132,19 @@ const Explore = () => {
           </select>
         </div>
 
-        <div className="text-lg md:text-xl font-outfit font-semibold text-gray-600 flex-shrink-0">
-          OR
-        </div>
+        <div className="text-lg md:text-xl font-outfit font-semibold text-gray-600">OR</div>
 
-        {/* DPI Dropdown */}
         <div className="flex flex-col items-center w-full md:w-[360px]">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-lg md:text-xl font-outfit font-semibold text-gray-800">
-              Components To Build DPI
-            </span>
-          </div>
+          <span className="text-lg md:text-xl font-outfit font-semibold text-gray-800 mb-2">
+            Components To Build DPI
+          </span>
           <select
             value={selectedDpiId ?? ""}
             onChange={(e) => {
               setSelectedDpiId(e.target.value);
               setSelectedSectorId(null);
             }}
-            className="border border-gray-300 w-full rounded-md h-12 px-4 text-base font-outfit focus:outline-none focus:ring-2 focus:ring-purple-400"
+            className="border border-gray-300 w-full rounded-md h-12 px-4 text-base font-outfit focus:ring-2 focus:ring-purple-400"
           >
             <option value="">Choose a DPI Block</option>
             {dpiBlocks.map((block) => (
@@ -166,7 +156,7 @@ const Explore = () => {
         </div>
       </div>
 
-      {/* Sector Cards */}
+      {/* Render Sector or DPI Cards */}
       <div className="max-w-6xl mx-auto mt-12 px-4">
         {selectedSector && sectorIntro && (
           <>
@@ -185,7 +175,7 @@ const Explore = () => {
                     className="bg-white shadow-md hover:shadow-lg transition rounded-lg p-6 text-left border border-gray-100"
                   >
                     {bb.bbIntro && (
-                      <p className="text-sm text-gray-600 mb-3 italic leading-snug">
+                      <p className="text-sm text-gray-600 mb-3 italic">
                         {bb.bbIntro}
                       </p>
                     )}
@@ -212,7 +202,7 @@ const Explore = () => {
                             [index]: e.target.value,
                           })
                         }
-                        className="border border-gray-300 rounded-md px-3 py-2 text-sm font-outfit focus:outline-none focus:ring-2 focus:ring-purple-400 w-full sm:w-auto"
+                        className="border border-gray-300 rounded-md px-3 py-2 text-sm font-outfit focus:ring-2 focus:ring-purple-400 w-full sm:w-auto"
                       >
                         <option value="english">English</option>
                         <option value="bahasa">Bahasa</option>
@@ -225,7 +215,7 @@ const Explore = () => {
                         href={notesUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold px-4 py-2 rounded-md transition-all w-full sm:w-auto text-center"
+                        className="bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold px-4 py-2 rounded-md w-full sm:w-auto text-center"
                       >
                         Notes
                       </a>
@@ -237,47 +227,43 @@ const Explore = () => {
           </>
         )}
 
-        {/* DPI Block Cards */}
         {!selectedSector && selectedDpi && (
-          <>
-            <div className="bg-white shadow-md hover:shadow-lg transition rounded-lg p-6 text-left border border-gray-100">
-              <h3 className="font-semibold font-outfit text-lg md:text-xl text-purple-700">
-                {selectedDpi.title}
-              </h3>
-              <p className="text-sm md:text-base font-outfit text-gray-600 mt-2 mb-4">
-                {selectedDpi.shortDesc}
-              </p>
+          <div className="bg-white shadow-md hover:shadow-lg transition rounded-lg p-6 text-left border border-gray-100">
+            <h3 className="font-semibold font-outfit text-lg md:text-xl text-purple-700">
+              {selectedDpi.title}
+            </h3>
+            <p className="text-sm md:text-base font-outfit text-gray-600 mt-2 mb-4">
+              {selectedDpi.shortDesc}
+            </p>
 
-              {/* Language + Notes for DPI */}
-              <div className="flex flex-col sm:flex-row items-center gap-3">
-                <select
-                  value={selectedLanguage[selectedDpi.id] || "english"}
-                  onChange={(e) =>
-                    setSelectedLanguage({
-                      ...selectedLanguage,
-                      [selectedDpi.id]: e.target.value,
-                    })
-                  }
-                  className="border border-gray-300 rounded-md px-3 py-2 text-sm font-outfit focus:outline-none focus:ring-2 focus:ring-purple-400 w-full sm:w-auto"
-                >
-                  <option value="english">English</option>
-                  <option value="bahasa">Bahasa</option>
-                  <option value="portuguese">Portuguese</option>
-                  <option value="spanish">Spanish</option>
-                  <option value="french">French</option>
-                </select>
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <select
+                value={selectedLanguage[selectedDpi.id] || "english"}
+                onChange={(e) =>
+                  setSelectedLanguage({
+                    ...selectedLanguage,
+                    [selectedDpi.id]: e.target.value,
+                  })
+                }
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm font-outfit focus:ring-2 focus:ring-purple-400 w-full sm:w-auto"
+              >
+                <option value="english">English</option>
+                <option value="bahasa">Bahasa</option>
+                <option value="portuguese">Portuguese</option>
+                <option value="spanish">Spanish</option>
+                <option value="french">French</option>
+              </select>
 
-                <a
-                  href={getDpiNotesUrl(selectedDpi.title, selectedLanguage[selectedDpi.id])}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold px-4 py-2 rounded-md transition-all w-full sm:w-auto text-center"
-                >
-                  Notes
-                </a>
-              </div>
+              <a
+                href={getDpiNotesUrl(selectedDpi.title, selectedLanguage[selectedDpi.id])}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold px-4 py-2 rounded-md w-full sm:w-auto text-center"
+              >
+                Notes
+              </a>
             </div>
-          </>
+          </div>
         )}
       </div>
 
