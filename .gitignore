@@ -94,3 +94,63 @@ temp/
 # Generated files
 dpi-assistant/backend/lib/
 *.map
+
+# PDF files (if they're temporary)
+*.pdf
+
+# Large media files
+*.mov
+*.mp4
+*.avi
+
+# Personal files
+.CFUserTextEncoding
+.zsh_history
+.zsh_sessions/
+.npm/
+.config/
+.local/
+.cache/
+.cursor/
+.claude/
+.claude.json*
+.streamlit/
+.gitconfig
+.profile
+.zprofile
+.zshrc
+.node_repl_history
+
+# macOS
+Applications/
+Desktop/
+Documents/
+Library/
+Movies/
+Music/
+Pictures/
+Public/
+
+# Project specific
+dpi-frontend/
+weather/
+main.py
+server.js
+requirements*.txt
+package.json
+package-lock.json
+docker-compose.yml
+Dockerfile*
+*.py
+qr_analyzer.py
+rag_system.py
+setup_and_run.py
+git_setup.sh
+deploy_to_github.py
+data_ingestion_pipeline.py
+dpi_assistant_*.py
+dpi_documents/
+driving_license_temp.py
+README*.md
+# Include the public folder
+!public/
