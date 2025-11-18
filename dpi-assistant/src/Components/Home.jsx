@@ -102,8 +102,9 @@ const Home = () => {
 </Link>
         </section>
 
-        <Footer />
+
       </section>
+              <Footer />
     </div>
   );
 };

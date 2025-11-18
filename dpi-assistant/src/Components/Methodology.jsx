@@ -66,14 +66,14 @@ const Methodology = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10">
             <div className="flex justify-center items-center bg-white rounded-xl border border-gray-200 shadow-sm p-3 md:p-4">
               <img
-                src="MethodologySS.png"
+                src="https://cdpi-media.s3.amazonaws.com/MethodologySS1.png"
                 alt="Methodology Screenshot 1"
                 className="w-full h-auto max-h-[420px] md:max-h-[450px] object-contain rounded-lg"
               />
             </div>
             <div className="flex justify-center items-center bg-white rounded-xl border border-gray-200 shadow-sm p-3 md:p-4">
               <img
-                src="ss3.png"
+                src="https://cdpi-media.s3.amazonaws.com/MethodologySS1.png"
                 alt="Methodology Screenshot 2"
                 className="w-full h-auto max-h-[420px] md:max-h-[450px] object-contain rounded-lg"
               />

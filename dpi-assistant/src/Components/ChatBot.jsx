@@ -203,13 +203,13 @@ const ChatBot = forwardRef((_, ref) => {
           <br />
           Ask in English, French, Spanish, Portuguese, or other languages!
         </p>
-
-        <div className="flex gap-[20px] md:mt-[20px]">
+            
+        <div className="flex gap-[20px] md:mt-[20px] mt-[60px]">
           <textarea
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-[213px] h-[56px] md:w-[526px] md:h-[47px] rounded-[10px] lg:w-[850px] md:text-[20px] border-black text-[13px] p-2 resize-none placeholder:text-gray-500"
+            className="w-[213px]  h-[56px] md:w-[526px] md:h-[47px] rounded-[10px] lg:w-[850px] md:text-[20px] border-black text-[13px] p-2 resize-none placeholder:text-gray-500"
             placeholder="Type your question here or start with a prompt below..."
           />
           <button
