@@ -1,8 +1,8 @@
-version: '3.8'
-
 services:
   qdrant:
-    image: dpi-assistant-qdrant:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.qdrant
     container_name: dpi-qdrant
     ports:
       - "6333:6333"
@@ -12,7 +12,7 @@ services:
     environment:
       - QDRANT__SERVICE__GRPC_PORT=6334
     networks:
-      - dpi-sage-network
+      - dpi-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6333/"]
@@ -22,22 +22,21 @@ services:
       start_period: 10s
 
   backend:
-    image: dpi-assistant-backend:latest
+    build: .
     container_name: dpi-backend
     ports:
       - "8080:8080"
     environment:
-      - NODE_ENV=production
-      - PORT=8080
       - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
-      - QDRANT_URL=http://qdrant:6333
+      - QDRANT_URL=http://qdrant:6333  # Use service name for inter-container communication
       - USE_VECTOR_SEARCH=true
+      - PORT=8080
     depends_on:
       qdrant:
         condition: service_healthy
-    restart: unless-stopped
     networks:
-      - dpi-sage-network
+      - dpi-network
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 30s
@@ -45,24 +44,8 @@ services:
       retries: 3
       start_period: 40s
 
-  frontend:
-    image: dpi-assistant-frontend:latest
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      - NODE_ENV=production
-    volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-    restart: unless-stopped
-    depends_on:
-      - backend
-    networks:
-      - dpi-sage-network
-
 networks:
-  dpi-sage-network:
+  dpi-network:
     driver: bridge
 
 volumes:

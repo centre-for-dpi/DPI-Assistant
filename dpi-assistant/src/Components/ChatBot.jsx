@@ -8,6 +8,8 @@ import React, {
 import { sendChatMessage, sendFeedback } from "../services/api";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
 import Animated_Logo2 from "./Animated_Logo2";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const ChatBot = forwardRef((_, ref) => {
   const [input, setInput] = useState("");
@@ -242,26 +244,32 @@ const ChatBot = forwardRef((_, ref) => {
                           </div>
                         ) : message.answer ? (
                           <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
-                            <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                              {message.answer}
-                            </p>
-                            {message.sources && message.sources.length > 0 && (
-                              <div className="mt-3 pt-3 border-t border-gray-200">
-                                <p className="text-xs text-gray-500 font-semibold mb-1">
-                                  Sources:
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                  {message.sources.map((source, idx) => (
-                                    <span
-                                      key={idx}
-                                      className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full"
-                                    >
-                                      {source}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+                            <div className="prose prose-sm max-w-none text-gray-700">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  h1: ({node, ...props}) => <h1 className="text-xl font-bold mt-4 mb-2 text-gray-900" {...props} />,
+                                  h2: ({node, ...props}) => <h2 className="text-lg font-bold mt-3 mb-2 text-gray-900" {...props} />,
+                                  h3: ({node, ...props}) => <h3 className="text-base font-semibold mt-2 mb-1 text-gray-900" {...props} />,
+                                  p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                                  ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-2 space-y-1" {...props} />,
+                                  ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-2 space-y-1" {...props} />,
+                                  li: ({node, ...props}) => <li className="leading-relaxed" {...props} />,
+                                  strong: ({node, ...props}) => <strong className="font-semibold text-gray-900" {...props} />,
+                                  em: ({node, ...props}) => <em className="italic" {...props} />,
+                                  code: ({node, inline, ...props}) =>
+                                    inline ? (
+                                      <code className="bg-gray-200 px-1 py-0.5 rounded text-xs font-mono" {...props} />
+                                    ) : (
+                                      <code className="block bg-gray-800 text-gray-100 p-2 rounded text-xs font-mono overflow-x-auto" {...props} />
+                                    ),
+                                  a: ({node, ...props}) => <a className="text-purple-600 hover:text-purple-800 underline" {...props} />,
+                                }}
+                              >
+                                {message.answer}
+                              </ReactMarkdown>
+                            </div>
+                            {/* Sources hidden as requested */}
                           </div>
                         ) : message.suggestedDPIs ? (
                           <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
