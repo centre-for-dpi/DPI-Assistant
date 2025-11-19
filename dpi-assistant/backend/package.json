@@ -1,0 +1,33 @@
+{
+  "name": "dpi-assistant-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "start": "node lib/server.js",
+    "dev": "tsc --watch",
+    "populate-vectors": "tsc && node lib/scripts/populateVectorStore.js",
+    "qdrant:start": "docker-compose up -d qdrant",
+    "qdrant:stop": "docker-compose down",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:restart": "docker-compose restart backend"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@qdrant/js-client-rest": "^1.16.0",
+    "cors": "^2.8.0",
+    "express": "^4.18.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.0",
+    "@types/express": "^4.17.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
