@@ -20,7 +20,7 @@ export const sectorList = [
     title: "Digital Transformation",
     shortDesc:
       "Create an e-wallet and issuance model for digitally signed credentials by any department",
-    contentFile: "https://cdpi-media.s3.amazonaws.com/Sec3.txt",
+    contentFile: "https://cdpi-media.s3.ap-south-1.amazonaws.com/Sec3.txt",
   },
   {
     id: 4,

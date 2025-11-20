@@ -73,6 +73,8 @@ const Explore = () => {
     } else {
       sectorName = sectorName.toLowerCase();
     }
+    
+
 
     const lang = language?.toLowerCase() || "english";
     return lang === "english"
@@ -82,12 +84,14 @@ const Explore = () => {
 
   // Helper for DPI notes URLs
   const getDpiNotesUrl = (dpiTitle, language) => {
+    console.log(dpiTitle,language);
+    
     if (!dpiTitle) return "#";
     const lang = language?.toLowerCase() || "english";
 
     const mapping = {
       Registries: "registries",
-      "Functional ID": "id",
+      "Functional IDs": "id",
       "Data Sharing": "vc",
       Payments: "obpd",
     };
