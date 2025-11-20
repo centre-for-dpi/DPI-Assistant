@@ -6,6 +6,7 @@ import FloatingQuestions from "./FloatingQuestions";
 import Explore from "./Explore";
 import JargonExplainer from "./JargonExplainer";
 import ChatBot from "./ChatBot";
+import { useState } from "react";
 
 const Home = () => {
   // DOM container ref used for scrollIntoView
@@ -32,13 +33,37 @@ const Home = () => {
       }
     }, 350);
   };
+    const [persona, setPersona] = useState("Country leader");
+
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-r from-fuchsia-50 to-purple-100">
       <Navbar />
 
+       <div className=" mt-[110px] text-center flex justify-center flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 text-gray-800 font-outfit text-[15px]">
+      <label
+        htmlFor="persona"
+        className="whitespace-nowrap font-medium"
+      >
+        My persona is closest to
+      </label>
+
+      <select
+        id="persona"
+        value={persona}
+        onChange={(e) => setPersona(e.target.value)}
+        className="border border-gray-300 rounded-lg px-3 py-2 text-[15px] text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 w-full sm:w-auto"
+      >
+        <option>Country leader</option>
+        <option>Country official</option>
+        <option>Technical architect</option>
+        <option>Development partner</option>
+        <option>General persona</option>
+      </select>
+    </div>
+
       {/* HERO SECTION */}
-      <section className="relative w-full py-10  ">
+      <section className="relative w-full py-10   ">
         {/* container for scrolling — attach DOM ref here */}
         <div ref={chatContainerRef}>
           {/* pass separate component ref to ChatBot */}
@@ -77,8 +102,9 @@ const Home = () => {
 </Link>
         </section>
 
-        <Footer />
+
       </section>
+              <Footer />
     </div>
   );
 };
