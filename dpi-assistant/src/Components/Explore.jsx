@@ -84,7 +84,6 @@ const Explore = () => {
 
   // Helper for DPI notes URLs
   const getDpiNotesUrl = (dpiTitle, language) => {
-    console.log(dpiTitle,language);
     
     if (!dpiTitle) return "#";
     const lang = language?.toLowerCase() || "english";
