@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { randomUUID } from 'crypto';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai'; // New SDK with web search support
 import * as fs from 'fs';
 import * as path from 'path';
 import { VectorStore } from './services/vectorStore';
@@ -32,7 +33,8 @@ app.use(express.json());
 
 // Initialize Gemini AI
 const apiKey = process.env.GOOGLE_AI_API_KEY || '';
-const genAI = new GoogleGenerativeAI(apiKey);
+const genAI = new GoogleGenerativeAI(apiKey); // Legacy SDK for embeddings
+const genAINew = new GoogleGenAI({ apiKey }); // New SDK with web search support
 
 // Initialize Vector Store and Embedding Service
 // Dynamic Qdrant URL configuration:
@@ -157,9 +159,17 @@ const answerPromptTemplate = loadPromptTemplate('answer-dpi-questions-prompt.md'
 const suggestDPIsPromptTemplate = loadPromptTemplate('suggest-relevant-dpis-prompt.md');
 const summarizeDocumentPromptTemplate = loadPromptTemplate('summarize-documents-prompt.md');
 
-// Create Gemini model
-function createModel() {
-  return genAI.getGenerativeModel({ model: 'models/gemini-2.5-flash' });
+// Create Gemini model with web search and temperature configuration using NEW SDK
+function createModelConfig() {
+  return {
+    model: 'gemini-2.5-flash',
+    config: {
+      tools: [
+        { googleSearch: {} } // Enable web search (Google Search grounding)
+      ],
+      temperature: 0.7, // Set temperature between 0 and 0.7 for balanced creativity and accuracy
+    }
+  };
 }
 
 // Retrieve relevant context using vector search or fallback to full KB
@@ -256,11 +266,28 @@ app.post('/chat', async (req, res) => {
       persona: persona || ''
     });
 
-    // Create model instance
-    const model = createModel();
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const answer = response.text();
+    // Generate response using new SDK with web search support
+    const { model, config } = createModelConfig();
+    const result = await genAINew.models.generateContent({
+      model,
+      contents: prompt,
+      config
+    });
+
+    const answer = result.text || '';
+
+    // Log grounding metadata if web search was used
+    const groundingMetadata = (result as any).groundingMetadata;
+    if (groundingMetadata) {
+      console.log('🌐 Web search triggered!');
+      console.log(`   Search queries: ${groundingMetadata.webSearchQueries?.join(', ') || 'N/A'}`);
+      console.log(`   Grounding chunks: ${groundingMetadata.groundingChunks?.length || 0}`);
+      if (groundingMetadata.retrievalMetadata?.googleSearchDynamicRetrievalScore) {
+        console.log(`   Retrieval score: ${groundingMetadata.retrievalMetadata.googleSearchDynamicRetrievalScore}`);
+      }
+    } else {
+      console.log('📚 Response generated from knowledge base only (no web search)');
+    }
 
     res.json({
       id: randomUUID(),
@@ -300,10 +327,21 @@ app.post('/suggest-dpis', async (req, res) => {
       knowledgeBase: knowledgeBase
     });
 
-    const model = createModel();
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const rawAnswer = response.text();
+    const { model, config } = createModelConfig();
+    const result = await genAINew.models.generateContent({
+      model,
+      contents: prompt,
+      config
+    });
+
+    const rawAnswer = result.text || '';
+
+    // Log grounding metadata if web search was used
+    const groundingMetadata = (result as any).groundingMetadata;
+    if (groundingMetadata) {
+      console.log('🌐 [suggest-dpis] Web search triggered!');
+      console.log(`   Search queries: ${groundingMetadata.webSearchQueries?.join(', ') || 'N/A'}`);
+    }
 
     res.json({
       id: randomUUID(),
@@ -339,10 +377,14 @@ app.post('/summarize', async (req, res) => {
       documentTitle: documentTitle || 'Untitled Document'
     });
 
-    const model = createModel();
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const summary = response.text();
+    const { model, config } = createModelConfig();
+    const result = await genAINew.models.generateContent({
+      model,
+      contents: prompt,
+      config
+    });
+
+    const summary = result.text || '';
 
     res.json({
       id: randomUUID(),
