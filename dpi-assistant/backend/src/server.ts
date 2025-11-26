@@ -277,7 +277,8 @@ app.post('/chat', async (req, res) => {
     const answer = result.text || '';
 
     // Log grounding metadata if web search was used
-    const groundingMetadata = (result as any).groundingMetadata;
+    // Grounding metadata is in candidates[0].groundingMetadata
+    const groundingMetadata = (result as any).candidates?.[0]?.groundingMetadata;
     if (groundingMetadata) {
       console.log('🌐 Web search triggered!');
       console.log(`   Search queries: ${groundingMetadata.webSearchQueries?.join(', ') || 'N/A'}`);
@@ -337,10 +338,13 @@ app.post('/suggest-dpis', async (req, res) => {
     const rawAnswer = result.text || '';
 
     // Log grounding metadata if web search was used
-    const groundingMetadata = (result as any).groundingMetadata;
+    const groundingMetadata = (result as any).candidates?.[0]?.groundingMetadata;
     if (groundingMetadata) {
       console.log('🌐 [suggest-dpis] Web search triggered!');
       console.log(`   Search queries: ${groundingMetadata.webSearchQueries?.join(', ') || 'N/A'}`);
+      console.log(`   Grounding chunks: ${groundingMetadata.groundingChunks?.length || 0}`);
+    } else {
+      console.log('📚 [suggest-dpis] Response from knowledge base only (no web search)');
     }
 
     res.json({
