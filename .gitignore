@@ -94,3 +94,14 @@ temp/
 # Generated files
 dpi-assistant/backend/lib/
 *.map
+
+# AWS & deployment credentials
+*.pem
+*.key
+*.cert
+
+# Docker overrides
+docker-compose.override.yml
+
+# Backend env example (only keep at root)
+dpi-assistant/backend/.env.example

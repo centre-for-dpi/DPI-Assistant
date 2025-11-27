@@ -5,8 +5,22 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GoogleGenAI } from '@google/genai'; // New SDK with web search support
 import * as fs from 'fs';
 import * as path from 'path';
+import * as dotenv from 'dotenv';
 import { VectorStore } from './services/vectorStore';
 import { EmbeddingService } from './utils/embeddings';
+import { S3Service } from './services/s3Service';
+import { SlackService } from './services/slackService';
+import { IndexingService } from './services/indexingService';
+
+// Load environment variables from parent directory (for local development)
+// In Docker/production, environment variables are passed directly
+if (process.env.NODE_ENV !== 'production') {
+  const envPath = path.join(__dirname, '..', '..', '.env');
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    console.log('✅ Loaded environment variables from .env');
+  }
+}
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -46,6 +60,34 @@ const useVectorSearch = process.env.USE_VECTOR_SEARCH !== 'false'; // Default to
 let vectorStore: VectorStore | null = null;
 let embeddingService: EmbeddingService | null = null;
 
+// Initialize S3 Service
+const s3BucketName = process.env.S3_KNOWLEDGE_BASE_BUCKET;
+const awsRegion = process.env.AWS_REGION || 'ap-south-1';
+let s3Service: S3Service | null = null;
+
+if (s3BucketName) {
+  s3Service = new S3Service(s3BucketName, awsRegion);
+  console.log(`✅ S3 Service initialized: ${s3BucketName} (${awsRegion})`);
+} else {
+  console.log('⚠️  S3_KNOWLEDGE_BASE_BUCKET not set, using local filesystem');
+}
+
+// Initialize Slack Service
+const slackBotToken = process.env.SLACK_BOT_TOKEN;
+const slackSigningSecret = process.env.SLACK_SIGNING_SECRET;
+const slackChannelId = process.env.SLACK_KNOWLEDGE_BASE_CHANNEL;
+let slackService: SlackService | null = null;
+
+if (slackBotToken && slackSigningSecret) {
+  slackService = new SlackService(slackBotToken, slackSigningSecret);
+  console.log(`✅ Slack Service initialized`);
+} else {
+  console.log('⚠️  Slack credentials not set, Slack integration disabled');
+}
+
+// Indexing service will be initialized after vector services
+let indexingService: IndexingService | null = null;
+
 // Initialize vector services if enabled
 async function initializeVectorServices() {
   if (!useVectorSearch) {
@@ -61,6 +103,10 @@ async function initializeVectorServices() {
     const collectionInfo = await vectorStore.getCollectionInfo();
     if (collectionInfo) {
       console.log(`✅ Vector store connected: ${collectionInfo.points_count} vectors`);
+
+      // Initialize indexing service
+      indexingService = new IndexingService(vectorStore, embeddingService);
+      console.log(`✅ Indexing service ready for auto-indexing`);
     } else {
       console.log('⚠️  Vector store collection not found. Run: npm run populate-vectors');
     }
@@ -69,12 +115,22 @@ async function initializeVectorServices() {
     console.log('   Falling back to full knowledge base mode');
     vectorStore = null;
     embeddingService = null;
+    indexingService = null;
   }
 }
 
-// Load knowledge base - NOW LOADS ALL FILES COMPLETELY
-function loadKnowledgeBase(): string {
+// Load knowledge base - Supports both S3 and local filesystem
+async function loadKnowledgeBase(): Promise<string> {
   try {
+    // If S3 is configured, load from S3
+    if (s3Service) {
+      console.log('📦 Loading knowledge base from S3...');
+      const knowledgeBase = await s3Service.loadAllDocuments();
+      return knowledgeBase;
+    }
+
+    // Fallback to local filesystem
+    console.log('📁 Loading knowledge base from local filesystem...');
     const kbPath = path.join(__dirname, '..', 'content', 'knowledge-base');
     if (!fs.existsSync(kbPath)) {
       console.warn('Knowledge base directory not found');
@@ -117,7 +173,7 @@ function loadKnowledgeBase(): string {
   }
 }
 
-const knowledgeBase = loadKnowledgeBase();
+let knowledgeBase: string = '';
 
 // Load prompt templates - LOADS ALL PROMPTS
 function loadPromptTemplate(filename: string): string {
@@ -408,8 +464,105 @@ app.post('/feedback', (req, res) => {
   res.json({ success: true, message: 'Feedback received' });
 });
 
+// Slack Events Webhook - Handle file uploads from Slack
+app.post('/slack/events', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    if (!slackService || !s3Service) {
+      return res.status(503).json({ error: 'Slack or S3 service not configured' });
+    }
+
+    // Parse the body
+    const rawBody = req.body.toString('utf8');
+    const body = JSON.parse(rawBody);
+
+    // Verify Slack signature
+    const slackSignature = req.headers['x-slack-signature'] as string;
+    const slackTimestamp = req.headers['x-slack-request-timestamp'] as string;
+
+    if (!slackService.verifySlackRequest(slackSignature, slackTimestamp, rawBody)) {
+      console.warn('⚠️  Invalid Slack signature');
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+
+    // Handle Slack URL verification challenge
+    if (body.type === 'url_verification') {
+      return res.json({ challenge: body.challenge });
+    }
+
+    // Handle file_shared event
+    if (body.event?.type === 'file_shared') {
+      const fileId = body.event.file_id;
+      const channelId = body.event.channel_id;
+
+      // Only process files from the designated knowledge base channel
+      if (slackChannelId && channelId !== slackChannelId) {
+        console.log(`⏭️  Ignoring file from channel ${channelId} (not knowledge base channel)`);
+        return res.json({ ok: true });
+      }
+
+      console.log(`📥 Processing file upload from Slack: ${fileId}`);
+
+      // Get file info
+      const fileInfo = await slackService.getFileInfo(fileId);
+
+      // Validate file type (must be markdown)
+      if (!fileInfo.name.endsWith('.md')) {
+        await slackService.addReaction(channelId, body.event.event_ts, 'x');
+        await slackService.postMessage(
+          channelId,
+          `❌ Only Markdown (.md) files are supported. File "${fileInfo.name}" was not added to the knowledge base.`
+        );
+        return res.json({ ok: true });
+      }
+
+      // Download file from Slack
+      const fileBuffer = await slackService.downloadFile(fileInfo.url_private_download);
+
+      // Upload to S3
+      await s3Service.uploadFileBuffer(fileInfo.name, fileBuffer);
+
+      // Add success reaction
+      await slackService.addReaction(channelId, body.event.event_ts, 'white_check_mark');
+
+      // Auto-index if indexing service is available
+      if (indexingService) {
+        try {
+          const content = fileBuffer.toString('utf-8');
+          await indexingService.indexDocument(fileInfo.name, content);
+
+          await slackService.postMessage(
+            channelId,
+            `✅ Successfully added "${fileInfo.name}" to knowledge base and indexed for search!`
+          );
+        } catch (indexError) {
+          console.error('Error indexing document:', indexError);
+          await slackService.postMessage(
+            channelId,
+            `⚠️  Added "${fileInfo.name}" to S3, but indexing failed. Run manual re-index.`
+          );
+        }
+      } else {
+        await slackService.postMessage(
+          channelId,
+          `✅ Successfully added "${fileInfo.name}" to knowledge base! (Vector search not available, file stored in S3)`
+        );
+      }
+
+      console.log(`✅ Successfully processed file: ${fileInfo.name}`);
+    }
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error processing Slack event:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Start server
 async function startServer() {
+  // Load knowledge base
+  knowledgeBase = await loadKnowledgeBase();
+
   // Initialize vector services
   await initializeVectorServices();
 
@@ -418,6 +571,7 @@ async function startServer() {
     console.log(`🚀 DPI Sage backend running on port ${port}`);
     console.log(`${'='.repeat(60)}`);
     console.log(`📚 Knowledge Base: ${knowledgeBase.length.toLocaleString()} characters`);
+    console.log(`📦 Storage: ${s3Service ? `S3 (${s3BucketName})` : 'Local Filesystem'}`);
     console.log(`📝 Prompts Loaded:`);
     console.log(`   - answer-dpi-questions: ${answerPromptTemplate ? '✅' : '❌'} (${answerPromptTemplate.length} chars)`);
     console.log(`   - suggest-relevant-dpis: ${suggestDPIsPromptTemplate ? '✅' : '❌'} (${suggestDPIsPromptTemplate.length} chars)`);
