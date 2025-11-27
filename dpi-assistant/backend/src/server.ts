@@ -48,18 +48,19 @@ app.use(cors(corsOptions));
 // This route needs raw body for signature verification
 app.post('/slack/events', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
-    if (!slackService || !s3Service) {
-      return res.status(503).json({ error: 'Slack or S3 service not configured' });
-    }
-
     // Parse the body
     const rawBody = req.body.toString('utf8');
     const body = JSON.parse(rawBody);
 
-    // Handle Slack URL verification challenge FIRST
+    // Handle Slack URL verification challenge FIRST (before any service checks)
     if (body.type === 'url_verification') {
       console.log('✅ Slack URL verification challenge received');
       return res.json({ challenge: body.challenge });
+    }
+
+    // Check services are configured for all other requests
+    if (!slackService || !s3Service) {
+      return res.status(503).json({ error: 'Slack or S3 service not configured' });
     }
 
     // Verify Slack signature for all other requests
