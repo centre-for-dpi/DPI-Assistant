@@ -32,8 +32,7 @@ const corsOptions = {
     'http://assistant.cdpi.dev',
     'http://localhost:3000',
     'http://localhost:5173',
-    'http://3.6.69.157',
-    'https://3.6.69.157'
+    'http://3.6.69.157'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
