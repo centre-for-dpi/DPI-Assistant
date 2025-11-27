@@ -43,6 +43,104 @@ const corsOptions = {
 
 // Middleware
 app.use(cors(corsOptions));
+
+// Define Slack webhook BEFORE express.json() middleware
+// This route needs raw body for signature verification
+app.post('/slack/events', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    if (!slackService || !s3Service) {
+      return res.status(503).json({ error: 'Slack or S3 service not configured' });
+    }
+
+    // Parse the body
+    const rawBody = req.body.toString('utf8');
+    const body = JSON.parse(rawBody);
+
+    // Handle Slack URL verification challenge FIRST
+    if (body.type === 'url_verification') {
+      console.log('✅ Slack URL verification challenge received');
+      return res.json({ challenge: body.challenge });
+    }
+
+    // Verify Slack signature for all other requests
+    const slackSignature = req.headers['x-slack-signature'] as string;
+    const slackTimestamp = req.headers['x-slack-request-timestamp'] as string;
+
+    if (!slackService.verifySlackRequest(slackSignature, slackTimestamp, rawBody)) {
+      console.warn('⚠️  Invalid Slack signature');
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+
+    // Handle file_shared event
+    if (body.event?.type === 'file_shared') {
+      const fileId = body.event.file_id;
+      const channelId = body.event.channel_id;
+
+      // Only process files from the designated knowledge base channel
+      if (slackChannelId && channelId !== slackChannelId) {
+        console.log(`⏭️  Ignoring file from channel ${channelId} (not knowledge base channel)`);
+        return res.json({ ok: true });
+      }
+
+      console.log(`📥 Processing file upload from Slack: ${fileId}`);
+
+      // Get file info
+      const fileInfo = await slackService.getFileInfo(fileId);
+
+      // Validate file type (must be markdown)
+      if (!fileInfo.name.endsWith('.md')) {
+        await slackService.addReaction(channelId, body.event.event_ts, 'x');
+        await slackService.postMessage(
+          channelId,
+          `❌ Only Markdown (.md) files are supported. File "${fileInfo.name}" was not added to the knowledge base.`
+        );
+        return res.json({ ok: true });
+      }
+
+      // Download file from Slack
+      const fileBuffer = await slackService.downloadFile(fileInfo.url_private_download);
+
+      // Upload to S3
+      await s3Service.uploadFileBuffer(fileInfo.name, fileBuffer);
+
+      // Add success reaction
+      await slackService.addReaction(channelId, body.event.event_ts, 'white_check_mark');
+
+      // Auto-index if indexing service is available
+      if (indexingService) {
+        try {
+          const content = fileBuffer.toString('utf-8');
+          await indexingService.indexDocument(fileInfo.name, content);
+
+          await slackService.postMessage(
+            channelId,
+            `✅ Successfully added "${fileInfo.name}" to knowledge base and indexed for search!`
+          );
+        } catch (indexError) {
+          console.error('Error indexing document:', indexError);
+          await slackService.postMessage(
+            channelId,
+            `⚠️  Added "${fileInfo.name}" to S3, but indexing failed. Run manual re-index.`
+          );
+        }
+      } else {
+        await slackService.postMessage(
+          channelId,
+          `✅ Successfully added "${fileInfo.name}" to knowledge base! (Vector search not available, file stored in S3)`
+        );
+      }
+
+      console.log(`✅ Successfully processed file: ${fileInfo.name}`);
+    }
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error processing Slack event:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Apply JSON parsing middleware for all other routes
 app.use(express.json());
 
 // Initialize Gemini AI
@@ -462,100 +560,6 @@ app.post('/feedback', (req, res) => {
   const { messageId, feedback } = req.body;
   console.log(`Feedback received for message ${messageId}: ${feedback}`);
   res.json({ success: true, message: 'Feedback received' });
-});
-
-// Slack Events Webhook - Handle file uploads from Slack
-app.post('/slack/events', express.raw({ type: 'application/json' }), async (req, res) => {
-  try {
-    if (!slackService || !s3Service) {
-      return res.status(503).json({ error: 'Slack or S3 service not configured' });
-    }
-
-    // Parse the body
-    const rawBody = req.body.toString('utf8');
-    const body = JSON.parse(rawBody);
-
-    // Verify Slack signature
-    const slackSignature = req.headers['x-slack-signature'] as string;
-    const slackTimestamp = req.headers['x-slack-request-timestamp'] as string;
-
-    if (!slackService.verifySlackRequest(slackSignature, slackTimestamp, rawBody)) {
-      console.warn('⚠️  Invalid Slack signature');
-      return res.status(401).json({ error: 'Invalid signature' });
-    }
-
-    // Handle Slack URL verification challenge
-    if (body.type === 'url_verification') {
-      return res.json({ challenge: body.challenge });
-    }
-
-    // Handle file_shared event
-    if (body.event?.type === 'file_shared') {
-      const fileId = body.event.file_id;
-      const channelId = body.event.channel_id;
-
-      // Only process files from the designated knowledge base channel
-      if (slackChannelId && channelId !== slackChannelId) {
-        console.log(`⏭️  Ignoring file from channel ${channelId} (not knowledge base channel)`);
-        return res.json({ ok: true });
-      }
-
-      console.log(`📥 Processing file upload from Slack: ${fileId}`);
-
-      // Get file info
-      const fileInfo = await slackService.getFileInfo(fileId);
-
-      // Validate file type (must be markdown)
-      if (!fileInfo.name.endsWith('.md')) {
-        await slackService.addReaction(channelId, body.event.event_ts, 'x');
-        await slackService.postMessage(
-          channelId,
-          `❌ Only Markdown (.md) files are supported. File "${fileInfo.name}" was not added to the knowledge base.`
-        );
-        return res.json({ ok: true });
-      }
-
-      // Download file from Slack
-      const fileBuffer = await slackService.downloadFile(fileInfo.url_private_download);
-
-      // Upload to S3
-      await s3Service.uploadFileBuffer(fileInfo.name, fileBuffer);
-
-      // Add success reaction
-      await slackService.addReaction(channelId, body.event.event_ts, 'white_check_mark');
-
-      // Auto-index if indexing service is available
-      if (indexingService) {
-        try {
-          const content = fileBuffer.toString('utf-8');
-          await indexingService.indexDocument(fileInfo.name, content);
-
-          await slackService.postMessage(
-            channelId,
-            `✅ Successfully added "${fileInfo.name}" to knowledge base and indexed for search!`
-          );
-        } catch (indexError) {
-          console.error('Error indexing document:', indexError);
-          await slackService.postMessage(
-            channelId,
-            `⚠️  Added "${fileInfo.name}" to S3, but indexing failed. Run manual re-index.`
-          );
-        }
-      } else {
-        await slackService.postMessage(
-          channelId,
-          `✅ Successfully added "${fileInfo.name}" to knowledge base! (Vector search not available, file stored in S3)`
-        );
-      }
-
-      console.log(`✅ Successfully processed file: ${fileInfo.name}`);
-    }
-
-    res.json({ ok: true });
-  } catch (error) {
-    console.error('Error processing Slack event:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
 });
 
 // Start server
