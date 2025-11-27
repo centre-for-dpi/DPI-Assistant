@@ -31,6 +31,13 @@ services:
       - QDRANT_URL=http://qdrant:6333  # Use service name for inter-container communication
       - USE_VECTOR_SEARCH=true
       - PORT=8080
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - S3_KNOWLEDGE_BASE_BUCKET=${S3_KNOWLEDGE_BASE_BUCKET}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
+      - SLACK_KNOWLEDGE_BASE_CHANNEL=${SLACK_KNOWLEDGE_BASE_CHANNEL}
     depends_on:
       qdrant:
         condition: service_healthy
