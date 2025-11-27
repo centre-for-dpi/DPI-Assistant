@@ -41,11 +41,8 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
-// Middleware
-app.use(cors(corsOptions));
-
-// Define Slack webhook BEFORE express.json() middleware
-// This route needs raw body for signature verification
+// Define Slack webhook BEFORE any middleware (including CORS)
+// This route needs raw body for signature verification and must bypass CORS
 app.post('/slack/events', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
     // Parse the body
@@ -145,7 +142,8 @@ app.post('/slack/events', express.raw({ type: 'application/json' }), async (req,
   }
 });
 
-// Apply JSON parsing middleware for all other routes
+// Apply CORS and JSON parsing middleware for all other routes
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Initialize Gemini AI
