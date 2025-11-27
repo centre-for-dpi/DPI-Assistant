@@ -113,6 +113,10 @@ jobs:
             dpi-assistant/docker-compose.prod.yml \
             ubuntu@${{ secrets.EC2_IP }}:/home/ubuntu/
 
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            dpi-assistant/nginx.conf \
+            ubuntu@${{ secrets.EC2_IP }}:/home/ubuntu/
+
       - name: Deploy on EC2
         if: github.event_name == 'push'
         run: |
@@ -129,6 +133,7 @@ jobs:
             mv /home/ubuntu/dpi-assistant-*.tar.gz /home/ubuntu/dpi-assistant/ 2>/dev/null || true
             mv /home/ubuntu/docker-compose.prod.yml /home/ubuntu/dpi-assistant/ 2>/dev/null || true
             mv /home/ubuntu/.env.prod /home/ubuntu/dpi-assistant/.env 2>/dev/null || true
+            mv /home/ubuntu/nginx.conf /home/ubuntu/dpi-assistant/ 2>/dev/null || true
 
             cd /home/ubuntu/dpi-assistant
 
