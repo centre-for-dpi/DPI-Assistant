@@ -8,6 +8,7 @@ import * as path from 'path';
 import { processKnowledgeBase } from '../utils/chunking';
 import { EmbeddingService } from '../utils/embeddings';
 import { VectorStore } from '../services/vectorStore';
+import { extractTextFromPDF, isSupportedDocument, isPDF } from '../utils/pdfExtractor';
 
 async function populateVectorStore() {
   console.log('🚀 Starting vector store population...\n');
@@ -32,12 +33,22 @@ async function populateVectorStore() {
       process.exit(1);
     }
 
-    const files = fs.readdirSync(kbPath)
-      .filter(file => file.endsWith('.md'))
-      .map(file => ({
-        filename: file,
-        content: fs.readFileSync(path.join(kbPath, file), 'utf-8')
-      }));
+    const fileNames = fs.readdirSync(kbPath).filter(file => isSupportedDocument(file));
+    const files = [];
+
+    for (const file of fileNames) {
+      const filePath = path.join(kbPath, file);
+      let content: string;
+
+      if (isPDF(file)) {
+        const buffer = fs.readFileSync(filePath);
+        content = await extractTextFromPDF(buffer);
+      } else {
+        content = fs.readFileSync(filePath, 'utf-8');
+      }
+
+      files.push({ filename: file, content });
+    }
 
     console.log(`✅ Loaded ${files.length} files\n`);
 
