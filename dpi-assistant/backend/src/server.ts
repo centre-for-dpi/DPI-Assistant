@@ -401,6 +401,147 @@ app.get('/health', async (req, res) => {
   });
 });
 
+// Health check with chat functionality test
+app.get('/health/full', async (_req, res) => {
+  const healthStatus: any = {
+    status: 'healthy',
+    timestamp: Date.now(),
+    checks: {
+      api: { status: 'ok', message: 'API is responding' },
+      knowledgeBase: { status: 'unknown', size: 0 },
+      vectorStore: { status: 'unknown', vectors: 0 },
+      prompts: { status: 'unknown', loaded: {} },
+      geminiApi: { status: 'unknown', message: '' },
+      chat: { status: 'unknown', message: '' }
+    }
+  };
+
+  // Check knowledge base
+  if (knowledgeBase && knowledgeBase.length > 0) {
+    healthStatus.checks.knowledgeBase = {
+      status: 'ok',
+      size: knowledgeBase.length
+    };
+  } else {
+    healthStatus.checks.knowledgeBase = {
+      status: 'error',
+      size: 0,
+      message: 'Knowledge base not loaded'
+    };
+    healthStatus.status = 'degraded';
+  }
+
+  // Check vector store
+  if (vectorStore) {
+    try {
+      const info = await vectorStore.getCollectionInfo();
+      healthStatus.checks.vectorStore = {
+        status: info ? 'ok' : 'not_initialized',
+        vectors: info?.points_count || 0
+      };
+    } catch (error) {
+      healthStatus.checks.vectorStore = {
+        status: 'error',
+        vectors: 0,
+        message: String(error)
+      };
+    }
+  } else {
+    healthStatus.checks.vectorStore = {
+      status: 'disabled',
+      vectors: 0
+    };
+  }
+
+  // Check prompts
+  const promptsOk = answerPromptTemplate.length > 0 &&
+                    suggestDPIsPromptTemplate.length > 0 &&
+                    summarizeDocumentPromptTemplate.length > 0;
+  healthStatus.checks.prompts = {
+    status: promptsOk ? 'ok' : 'error',
+    loaded: {
+      answer: answerPromptTemplate.length > 0,
+      suggest: suggestDPIsPromptTemplate.length > 0,
+      summarize: summarizeDocumentPromptTemplate.length > 0
+    }
+  };
+
+  if (!promptsOk) {
+    healthStatus.status = 'degraded';
+  }
+
+  // Check Gemini API key
+  if (apiKey) {
+    healthStatus.checks.geminiApi = {
+      status: 'ok',
+      message: 'API key configured'
+    };
+  } else {
+    healthStatus.checks.geminiApi = {
+      status: 'error',
+      message: 'API key not configured'
+    };
+    healthStatus.status = 'unhealthy';
+  }
+
+  // Test chat functionality with a simple query
+  if (apiKey && answerPromptTemplate.length > 0 && knowledgeBase.length > 0) {
+    try {
+      const testQuery = 'What is DPI?';
+      const relevantContext = await retrieveContext(testQuery);
+      const prompt = replaceTemplateVariables(answerPromptTemplate, {
+        question: testQuery,
+        knowledgeBase: relevantContext,
+        chatHistory: '',
+        persona: ''
+      });
+
+      const { model, config } = createModelConfig();
+      const result = await genAINew.models.generateContent({
+        model,
+        contents: prompt,
+        config
+      });
+
+      const answer = result.text || '';
+
+      if (answer.length > 0) {
+        healthStatus.checks.chat = {
+          status: 'ok',
+          message: 'Chat functionality working',
+          testQuery,
+          responseLength: answer.length
+        };
+      } else {
+        healthStatus.checks.chat = {
+          status: 'error',
+          message: 'Chat returned empty response',
+          testQuery
+        };
+        healthStatus.status = 'degraded';
+      }
+    } catch (error) {
+      healthStatus.checks.chat = {
+        status: 'error',
+        message: `Chat test failed: ${String(error)}`
+      };
+      healthStatus.status = 'unhealthy';
+    }
+  } else {
+    healthStatus.checks.chat = {
+      status: 'skipped',
+      message: 'Prerequisites not met (API key, prompts, or knowledge base missing)'
+    };
+    healthStatus.status = 'degraded';
+  }
+
+  // Set appropriate HTTP status code
+  const httpStatus = healthStatus.status === 'healthy' ? 200 :
+                     healthStatus.status === 'degraded' ? 200 : 503;
+
+  res.status(httpStatus).json(healthStatus);
+});
+
 // Main chat endpoint - Uses answer-dpi-questions-prompt.md
 app.post('/chat', async (req, res) => {
   try {
