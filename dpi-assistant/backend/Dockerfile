@@ -1,7 +1,10 @@
 # Multi-stage build for production
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
+
+# Install build dependencies for canvas and other native modules
+RUN apk add --no-cache python3 make g++ cairo-dev jpeg-dev pango-dev giflib-dev
 
 # Copy package files
 COPY package*.json ./
@@ -18,12 +21,12 @@ COPY content ./content
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
-# Install curl for health checks
-RUN apk add --no-cache curl
+# Install build and runtime dependencies for canvas and curl for health checks
+RUN apk add --no-cache curl python3 make g++ cairo cairo-dev jpeg jpeg-dev pango pango-dev giflib giflib-dev
 
 # Copy package files
 COPY package*.json ./

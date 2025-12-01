@@ -74,9 +74,9 @@ export class S3Service {
   }
 
   /**
-   * Download a single document from S3
+   * Download a file as a raw buffer from S3
    */
-  async getDocument(fileName: string): Promise<string> {
+  async downloadFile(fileName: string): Promise<Buffer> {
     const key = `${this.prefix}${fileName}`;
 
     const command = new GetObjectCommand({
@@ -87,7 +87,7 @@ export class S3Service {
     const response = await this.client.send(command);
 
     if (!response.Body) {
-      throw new Error(`Document ${fileName} has no content`);
+      throw new Error(`File ${fileName} has no content`);
     }
 
     // Convert stream to buffer
@@ -98,7 +98,14 @@ export class S3Service {
       chunks.push(chunk);
     }
 
-    const buffer = Buffer.concat(chunks);
+    return Buffer.concat(chunks);
+  }
+
+  /**
+   * Download a single document from S3 (with text extraction for PDFs)
+   */
+  async getDocument(fileName: string): Promise<string> {
+    const buffer = await this.downloadFile(fileName);
 
     // Extract text based on file type
     if (fileName.toLowerCase().endsWith('.pdf')) {
@@ -106,6 +113,14 @@ export class S3Service {
     } else {
       return buffer.toString('utf-8');
     }
+  }
+
+  /**
+   * List all file names in the knowledge base (markdown and PDF)
+   */
+  async listFiles(): Promise<string[]> {
+    const documents = await this.listDocuments();
+    return documents.map(doc => doc.key);
   }
 
   /**
