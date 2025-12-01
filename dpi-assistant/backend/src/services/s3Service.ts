@@ -7,6 +7,7 @@ import {
   HeadObjectCommand,
 } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
+import { extractTextFromPDF, isSupportedDocument } from '../utils/pdfExtractor';
 
 export interface S3Document {
   key: string;
@@ -52,11 +53,16 @@ export class S3Service {
   async uploadFileBuffer(fileName: string, buffer: Buffer): Promise<void> {
     const key = `${this.prefix}${fileName}`;
 
+    // Determine content type based on file extension
+    const contentType = fileName.toLowerCase().endsWith('.pdf')
+      ? 'application/pdf'
+      : 'text/markdown';
+
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
       Key: key,
       Body: buffer,
-      ContentType: 'text/markdown',
+      ContentType: contentType,
       Metadata: {
         uploadedAt: new Date().toISOString(),
         source: 'slack',
@@ -84,7 +90,7 @@ export class S3Service {
       throw new Error(`Document ${fileName} has no content`);
     }
 
-    // Convert stream to string
+    // Convert stream to buffer
     const stream = response.Body as Readable;
     const chunks: Buffer[] = [];
 
@@ -92,11 +98,18 @@ export class S3Service {
       chunks.push(chunk);
     }
 
-    return Buffer.concat(chunks).toString('utf-8');
+    const buffer = Buffer.concat(chunks);
+
+    // Extract text based on file type
+    if (fileName.toLowerCase().endsWith('.pdf')) {
+      return await extractTextFromPDF(buffer);
+    } else {
+      return buffer.toString('utf-8');
+    }
   }
 
   /**
-   * List all markdown documents in the knowledge base
+   * List all supported documents in the knowledge base (markdown and PDF)
    */
   async listDocuments(): Promise<S3Document[]> {
     const command = new ListObjectsV2Command({
@@ -111,7 +124,10 @@ export class S3Service {
     }
 
     return response.Contents
-      .filter(obj => obj.Key?.endsWith('.md'))
+      .filter(obj => {
+        const fileName = obj.Key?.replace(this.prefix, '') || '';
+        return isSupportedDocument(fileName);
+      })
       .map(obj => ({
         key: obj.Key!.replace(this.prefix, ''),
         content: '', // Content loaded on demand
@@ -121,7 +137,7 @@ export class S3Service {
   }
 
   /**
-   * Load all markdown documents from S3
+   * Load all supported documents from S3 (markdown and PDF)
    */
   async loadAllDocuments(): Promise<string> {
     const documents = await this.listDocuments();

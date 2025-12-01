@@ -11,6 +11,7 @@ import { EmbeddingService } from './utils/embeddings';
 import { S3Service } from './services/s3Service';
 import { SlackService } from './services/slackService';
 import { IndexingService } from './services/indexingService';
+import { extractTextFromPDF, isSupportedDocument, isPDF } from './utils/pdfExtractor';
 
 // Load environment variables from parent directory (for local development)
 // In Docker/production, environment variables are passed directly
@@ -88,12 +89,12 @@ app.post('/slack/events', express.raw({ type: 'application/json' }), async (req,
       // Get file info
       const fileInfo = await slackService.getFileInfo(fileId);
 
-      // Validate file type (must be markdown)
-      if (!fileInfo.name.endsWith('.md')) {
+      // Validate file type (must be markdown or PDF)
+      if (!isSupportedDocument(fileInfo.name)) {
         await slackService.addReaction(channelId, body.event.event_ts, 'x');
         await slackService.postMessage(
           channelId,
-          `❌ Only Markdown (.md) files are supported. File "${fileInfo.name}" was not added to the knowledge base.`
+          `❌ Only Markdown (.md) and PDF (.pdf) files are supported. File "${fileInfo.name}" was not added to the knowledge base.`
         );
         return res.json({ ok: true });
       }
@@ -110,7 +111,13 @@ app.post('/slack/events', express.raw({ type: 'application/json' }), async (req,
       // Auto-index if indexing service is available
       if (indexingService) {
         try {
-          const content = fileBuffer.toString('utf-8');
+          // Extract text content based on file type
+          let content: string;
+          if (isPDF(fileInfo.name)) {
+            content = await extractTextFromPDF(fileBuffer);
+          } else {
+            content = fileBuffer.toString('utf-8');
+          }
           await indexingService.indexDocument(fileInfo.name, content);
 
           await slackService.postMessage(
@@ -257,15 +264,24 @@ async function loadKnowledgeBase(): Promise<string> {
       }
     }
 
-    // Load all other markdown files
+    // Load all other supported files (markdown and PDF)
     for (const file of files) {
-      if (file.endsWith('.md') && !priorityFiles.includes(file)) {
-        const content = fs.readFileSync(path.join(kbPath, file), 'utf-8');
+      if (isSupportedDocument(file) && !priorityFiles.includes(file)) {
+        const filePath = path.join(kbPath, file);
+        let content: string;
+
+        if (isPDF(file)) {
+          const buffer = fs.readFileSync(filePath);
+          content = await extractTextFromPDF(buffer);
+        } else {
+          content = fs.readFileSync(filePath, 'utf-8');
+        }
+
         knowledgeBase += `\n\n--- ${file} ---\n${content}`;
       }
     }
 
-    console.log(`✅ Knowledge base loaded: ${files.filter(f => f.endsWith('.md')).length} files, ${knowledgeBase.length} characters`);
+    console.log(`✅ Knowledge base loaded: ${files.filter(f => isSupportedDocument(f)).length} files, ${knowledgeBase.length} characters`);
     return knowledgeBase;
   } catch (error) {
     console.error('Error loading knowledge base:', error);
