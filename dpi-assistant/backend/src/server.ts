@@ -78,13 +78,25 @@ app.post('/slack/events', express.raw({ type: 'application/json' }), async (req,
       const fileId = body.event.file_id;
       const channelId = body.event.channel_id;
 
+      // Event deduplication - use event_id if available, otherwise use file_id + event_ts
+      const eventId = body.event_id || `${fileId}_${body.event.event_ts}`;
+
+      // Check if we've already processed this event
+      if (processedEvents.has(eventId)) {
+        console.log(`⏭️  Skipping duplicate event: ${eventId} (file: ${fileId})`);
+        return res.json({ ok: true });
+      }
+
+      // Mark event as processed
+      processedEvents.set(eventId, Date.now());
+
       // Only process files from the designated knowledge base channel
       if (slackChannelId && channelId !== slackChannelId) {
         console.log(`⏭️  Ignoring file from channel ${channelId} (not knowledge base channel)`);
         return res.json({ ok: true });
       }
 
-      console.log(`📥 Processing file upload from Slack: ${fileId}`);
+      console.log(`📥 Processing file upload from Slack: ${fileId} (event: ${eventId})`);
 
       // Get file info
       const fileInfo = await slackService.getFileInfo(fileId);
@@ -214,6 +226,20 @@ app.post('/slack/events', express.raw({ type: 'application/json' }), async (req,
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// Event deduplication cache - stores processed event IDs with timestamp
+const processedEvents = new Map<string, number>();
+const EVENT_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+// Cleanup old events every 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [eventId, timestamp] of processedEvents.entries()) {
+    if (now - timestamp > EVENT_CACHE_TTL) {
+      processedEvents.delete(eventId);
+    }
+  }
+}, 10 * 60 * 1000);
 
 // Apply CORS and JSON parsing middleware for all other routes
 app.use(cors(corsOptions));
