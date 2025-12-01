@@ -179,7 +179,7 @@ jobs:
         if: github.event_name == 'push'
         run: |
           echo "🔍 Running basic health check..."
-          HEALTH_RESPONSE=$(curl -s -w "\n%{http_code}" http://${{ secrets.EC2_IP }}:8080/health)
+          HEALTH_RESPONSE=$(curl -s -w "\n%{http_code}" http://${{ secrets.EC2_IP }}/health)
           HTTP_CODE=$(echo "$HEALTH_RESPONSE" | tail -n1)
           HEALTH_BODY=$(echo "$HEALTH_RESPONSE" | sed '$d')
 
@@ -197,7 +197,7 @@ jobs:
         if: github.event_name == 'push'
         run: |
           echo "🔍 Running comprehensive health check with chat functionality test..."
-          FULL_HEALTH_RESPONSE=$(curl -s -w "\n%{http_code}" http://${{ secrets.EC2_IP }}:8080/health/full)
+          FULL_HEALTH_RESPONSE=$(curl -s -w "\n%{http_code}" http://${{ secrets.EC2_IP }}/health/full)
           HTTP_CODE=$(echo "$FULL_HEALTH_RESPONSE" | tail -n1)
           HEALTH_BODY=$(echo "$FULL_HEALTH_RESPONSE" | sed '$d')
 
@@ -258,9 +258,9 @@ jobs:
           echo ""
           echo "📋 Deployment Summary:"
           echo "  Application URL: http://${{ secrets.EC2_IP }}"
-          echo "  API URL: http://${{ secrets.EC2_IP }}:8080"
-          echo "  Health Check: http://${{ secrets.EC2_IP }}:8080/health"
-          echo "  Full Health Check: http://${{ secrets.EC2_IP }}:8080/health/full"
+          echo "  API URL: http://${{ secrets.EC2_IP }}/api"
+          echo "  Health Check: http://${{ secrets.EC2_IP }}/health"
+          echo "  Full Health Check: http://${{ secrets.EC2_IP }}/health/full"
           echo ""
           echo "✅ All runtime checks passed"
           echo "✅ Chat functionality verified"
