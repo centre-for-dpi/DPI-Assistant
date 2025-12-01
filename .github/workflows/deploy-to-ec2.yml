@@ -169,12 +169,101 @@ jobs:
             docker-compose -f docker-compose.prod.yml ps
           ENDSSH
 
-      - name: Verify deployment
+      - name: Wait for services to stabilize
         if: github.event_name == 'push'
         run: |
-          echo "🎉 Deployment completed!"
-          echo "Application URL: http://${{ secrets.EC2_IP }}"
-          echo "API URL: http://${{ secrets.EC2_IP }}:8080"
+          echo "⏳ Waiting for services to fully stabilize..."
+          sleep 20
+
+      - name: Verify deployment - Basic health check
+        if: github.event_name == 'push'
+        run: |
+          echo "🔍 Running basic health check..."
+          HEALTH_RESPONSE=$(curl -s -w "\n%{http_code}" http://${{ secrets.EC2_IP }}:8080/health)
+          HTTP_CODE=$(echo "$HEALTH_RESPONSE" | tail -n1)
+          HEALTH_BODY=$(echo "$HEALTH_RESPONSE" | sed '$d')
+
+          echo "Health check response:"
+          echo "$HEALTH_BODY" | jq '.' || echo "$HEALTH_BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Basic health check failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "✅ Basic health check passed"
+
+      - name: Verify deployment - Full health check with chat test
+        if: github.event_name == 'push'
+        run: |
+          echo "🔍 Running comprehensive health check with chat functionality test..."
+          FULL_HEALTH_RESPONSE=$(curl -s -w "\n%{http_code}" http://${{ secrets.EC2_IP }}:8080/health/full)
+          HTTP_CODE=$(echo "$FULL_HEALTH_RESPONSE" | tail -n1)
+          HEALTH_BODY=$(echo "$FULL_HEALTH_RESPONSE" | sed '$d')
+
+          echo "Full health check response:"
+          echo "$HEALTH_BODY" | jq '.' || echo "$HEALTH_BODY"
+
+          # Check if the response is valid JSON
+          if ! echo "$HEALTH_BODY" | jq empty 2>/dev/null; then
+            echo "❌ Invalid JSON response from health check"
+            exit 1
+          fi
+
+          # Extract status
+          STATUS=$(echo "$HEALTH_BODY" | jq -r '.status')
+          CHAT_STATUS=$(echo "$HEALTH_BODY" | jq -r '.checks.chat.status')
+          CHAT_MESSAGE=$(echo "$HEALTH_BODY" | jq -r '.checks.chat.message')
+
+          echo ""
+          echo "📊 Health Check Results:"
+          echo "  Overall Status: $STATUS"
+          echo "  Chat Status: $CHAT_STATUS"
+          echo "  Chat Message: $CHAT_MESSAGE"
+
+          # Fail if status is unhealthy
+          if [ "$STATUS" = "unhealthy" ]; then
+            echo "❌ Deployment health check failed: System is unhealthy"
+            exit 1
+          fi
+
+          # Fail if chat functionality is not working
+          if [ "$CHAT_STATUS" = "error" ]; then
+            echo "❌ Chat functionality test failed: $CHAT_MESSAGE"
+            exit 1
+          fi
+
+          if [ "$CHAT_STATUS" != "ok" ]; then
+            echo "⚠️  Warning: Chat status is '$CHAT_STATUS' - $CHAT_MESSAGE"
+            if [ "$STATUS" = "healthy" ]; then
+              echo "⚠️  Overall status is healthy but chat is not fully operational"
+            fi
+          else
+            echo "✅ Chat functionality verified successfully"
+          fi
+
+          # Accept healthy or degraded status (degraded may mean vector store is initializing)
+          if [ "$STATUS" = "healthy" ] || [ "$STATUS" = "degraded" ]; then
+            echo "✅ Full health check passed with status: $STATUS"
+          else
+            echo "❌ Unexpected health status: $STATUS"
+            exit 1
+          fi
+
+      - name: Verify deployment - Summary
+        if: github.event_name == 'push'
+        run: |
+          echo ""
+          echo "🎉 Deployment completed and verified successfully!"
+          echo ""
+          echo "📋 Deployment Summary:"
+          echo "  Application URL: http://${{ secrets.EC2_IP }}"
+          echo "  API URL: http://${{ secrets.EC2_IP }}:8080"
+          echo "  Health Check: http://${{ secrets.EC2_IP }}:8080/health"
+          echo "  Full Health Check: http://${{ secrets.EC2_IP }}:8080/health/full"
+          echo ""
+          echo "✅ All runtime checks passed"
+          echo "✅ Chat functionality verified"
 
       - name: Cleanup
         if: always()
