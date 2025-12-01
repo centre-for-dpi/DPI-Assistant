@@ -1,7 +1,6 @@
 /**
  * PDF text extraction utilities
  */
-import { pdf } from 'pdf-parse';
 
 /**
  * Extract text content from a PDF buffer
@@ -10,6 +9,8 @@ import { pdf } from 'pdf-parse';
  */
 export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   try {
+    // Dynamic import for ESM module compatibility
+    const { pdf } = await import('pdf-parse');
     const data = await pdf(buffer);
     return data.text;
   } catch (error) {
