@@ -2,6 +2,22 @@
  * PDF text extraction utilities
  */
 
+import * as canvas from 'canvas';
+
+// Polyfill required canvas APIs for pdf-parse
+if (!globalThis.DOMMatrix) {
+  // @ts-ignore - Polyfill for pdf-parse
+  globalThis.DOMMatrix = canvas.DOMMatrix;
+}
+if (!globalThis.ImageData) {
+  // @ts-ignore - Polyfill for pdf-parse
+  globalThis.ImageData = canvas.ImageData;
+}
+if (!globalThis.Path2D) {
+  // @ts-ignore - Polyfill for pdf-parse
+  globalThis.Path2D = canvas.Path2D;
+}
+
 /**
  * Extract text content from a PDF buffer
  * @param buffer PDF file buffer
@@ -11,7 +27,10 @@ export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   try {
     // Dynamic import for ESM module compatibility
     const { pdf } = await import('pdf-parse');
+
+    // Extract text from PDF
     const data = await pdf(buffer);
+
     return data.text;
   } catch (error) {
     console.error('Error extracting text from PDF:', error);

@@ -110,25 +110,92 @@ app.post('/slack/events', express.raw({ type: 'application/json' }), async (req,
 
       // Auto-index if indexing service is available
       if (indexingService) {
-        try {
-          // Extract text content based on file type
-          let content: string;
-          if (isPDF(fileInfo.name)) {
-            content = await extractTextFromPDF(fileBuffer);
-          } else {
-            content = fileBuffer.toString('utf-8');
-          }
-          await indexingService.indexDocument(fileInfo.name, content);
+        let indexingSuccess = false;
+        let lastError: any = null;
+        const maxRetries = 3;
+        const retryDelays = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
 
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+          try {
+            console.log(`📝 Indexing attempt ${attempt + 1}/${maxRetries} for: ${fileInfo.name}`);
+
+            // Extract text content based on file type
+            let content: string;
+            if (isPDF(fileInfo.name)) {
+              console.log(`   Extracting text from PDF...`);
+              content = await extractTextFromPDF(fileBuffer);
+              console.log(`   ✅ Extracted ${content.length} characters from PDF`);
+            } else {
+              content = fileBuffer.toString('utf-8');
+              console.log(`   ✅ Loaded ${content.length} characters from markdown`);
+            }
+
+            // Validate content
+            if (!content || content.trim().length === 0) {
+              throw new Error('Document content is empty after extraction');
+            }
+
+            console.log(`   Indexing document with ${content.length} characters...`);
+            await indexingService.indexDocument(fileInfo.name, content);
+
+            console.log(`✅ Successfully indexed "${fileInfo.name}" on attempt ${attempt + 1}`);
+            indexingSuccess = true;
+            break; // Success, exit retry loop
+          } catch (indexError) {
+            lastError = indexError;
+            console.error(`❌ Indexing attempt ${attempt + 1} failed for "${fileInfo.name}":`, indexError);
+
+            // Log detailed error information
+            if (indexError instanceof Error) {
+              console.error(`   Error name: ${indexError.name}`);
+              console.error(`   Error message: ${indexError.message}`);
+              console.error(`   Error stack: ${indexError.stack}`);
+            }
+
+            // If not the last attempt, wait before retrying
+            if (attempt < maxRetries - 1) {
+              const delay = retryDelays[attempt];
+              console.log(`   ⏳ Retrying in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
+          }
+        }
+
+        // Send appropriate Slack message
+        if (indexingSuccess) {
           await slackService.postMessage(
             channelId,
             `✅ Successfully added "${fileInfo.name}" to knowledge base and indexed for search!`
           );
-        } catch (indexError) {
-          console.error('Error indexing document:', indexError);
+        } else {
+          // Extract error type for better error messages
+          let errorType = 'Unknown error';
+          let errorHint = 'Run manual re-index using: POST /reindex with {"fileName": "' + fileInfo.name + '"}';
+
+          if (lastError instanceof Error) {
+            if (lastError.message.includes('ECONNREFUSED') || lastError.message.includes('connect')) {
+              errorType = 'Vector store connection failed';
+              errorHint = 'Check if Qdrant is running: npm run qdrant:start';
+            } else if (lastError.message.includes('API') || lastError.message.includes('quota') || lastError.message.includes('rate limit')) {
+              errorType = 'API quota or rate limit exceeded';
+              errorHint = 'Wait a few minutes and try manual re-index';
+            } else if (lastError.message.includes('empty')) {
+              errorType = 'Document content is empty';
+              errorHint = 'Check if PDF extraction is working correctly';
+            } else {
+              errorType = lastError.message.substring(0, 100);
+            }
+          }
+
+          console.error(`\n❌ All ${maxRetries} indexing attempts failed for "${fileInfo.name}"`);
+          console.error(`   Error type: ${errorType}`);
+          console.error(`   Full error:`, lastError);
+
           await slackService.postMessage(
             channelId,
-            `⚠️  Added "${fileInfo.name}" to S3, but indexing failed. Run manual re-index.`
+            `⚠️  Added "${fileInfo.name}" to S3, but indexing failed after ${maxRetries} attempts.\n` +
+            `Error: ${errorType}\n` +
+            `${errorHint}`
           );
         }
       } else {
@@ -711,6 +778,119 @@ app.post('/summarize', async (req, res) => {
   } catch (error) {
     console.error('Error in summarize endpoint:', error);
     res.status(500).json({ error: 'Internal server error', details: String(error) });
+  }
+});
+
+// Manual re-index endpoint - Re-index a specific document from S3
+app.post('/reindex', async (req, res) => {
+  try {
+    const { fileName } = req.body;
+
+    if (!fileName || typeof fileName !== 'string') {
+      return res.status(400).json({ error: 'fileName is required' });
+    }
+
+    if (!s3Service) {
+      return res.status(503).json({ error: 'S3 service not configured' });
+    }
+
+    if (!indexingService) {
+      return res.status(503).json({ error: 'Indexing service not available. Check if Qdrant is running.' });
+    }
+
+    console.log(`🔄 Manual re-index requested for: ${fileName}`);
+
+    // Download file from S3
+    const fileBuffer = await s3Service.downloadFile(fileName);
+
+    // Extract text content based on file type
+    let content: string;
+    if (isPDF(fileName)) {
+      content = await extractTextFromPDF(fileBuffer);
+    } else {
+      content = fileBuffer.toString('utf-8');
+    }
+
+    // Index the document
+    await indexingService.indexDocument(fileName, content);
+
+    console.log(`✅ Successfully re-indexed: ${fileName}`);
+    res.json({
+      success: true,
+      message: `Successfully indexed "${fileName}"`,
+      fileName
+    });
+  } catch (error) {
+    console.error('Error re-indexing document:', error);
+    res.status(500).json({
+      error: 'Failed to re-index document',
+      details: String(error)
+    });
+  }
+});
+
+// Re-index all documents from S3
+app.post('/reindex-all', async (req, res) => {
+  try {
+    if (!s3Service) {
+      return res.status(503).json({ error: 'S3 service not configured' });
+    }
+
+    if (!indexingService) {
+      return res.status(503).json({ error: 'Indexing service not available. Check if Qdrant is running.' });
+    }
+
+    console.log(`🔄 Re-indexing all documents from S3...`);
+
+    // Get all files from S3
+    const files = await s3Service.listFiles();
+    console.log(`📋 Found ${files.length} files in S3`);
+
+    const results = {
+      total: files.length,
+      success: 0,
+      failed: 0,
+      errors: [] as Array<{ fileName: string; error: string }>
+    };
+
+    // Index each file
+    for (const fileName of files) {
+      try {
+        console.log(`📝 Processing: ${fileName}`);
+        const fileBuffer = await s3Service.downloadFile(fileName);
+
+        // Extract text content based on file type
+        let content: string;
+        if (isPDF(fileName)) {
+          content = await extractTextFromPDF(fileBuffer);
+        } else {
+          content = fileBuffer.toString('utf-8');
+        }
+
+        await indexingService.indexDocument(fileName, content);
+        results.success++;
+        console.log(`  ✅ Indexed: ${fileName}`);
+      } catch (error) {
+        results.failed++;
+        const errorMsg = String(error);
+        results.errors.push({ fileName, error: errorMsg });
+        console.error(`  ❌ Failed to index ${fileName}:`, error);
+      }
+    }
+
+    console.log(`\n✅ Re-indexing complete: ${results.success} success, ${results.failed} failed`);
+
+    res.json({
+      success: true,
+      message: 'Re-indexing complete',
+      results
+    });
+  } catch (error) {
+    console.error('Error in re-index-all:', error);
+    res.status(500).json({
+      error: 'Failed to re-index documents',
+      details: String(error)
+    });
   }
 });
 

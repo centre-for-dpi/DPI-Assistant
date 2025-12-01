@@ -282,7 +282,18 @@ Look for:
   - Check backend logs for indexing errors
 
 **Problem**: Manual re-index needed
-- **Solution**: Run `npm run populate-vectors` to re-index all documents
+- **Solution Option 1** (Specific file): Use the `/reindex` API endpoint to re-index a specific file:
+  ```bash
+  curl -X POST http://localhost:8080/reindex \
+    -H "Content-Type: application/json" \
+    -d '{"fileName": "your-file-name.pdf"}'
+  ```
+- **Solution Option 2** (All files): Use the `/reindex-all` API endpoint to re-index all files from S3:
+  ```bash
+  curl -X POST http://localhost:8080/reindex-all \
+    -H "Content-Type: application/json"
+  ```
+- **Solution Option 3** (Local files only): Run `npm run populate-vectors` to re-index all documents from local filesystem (Note: This won't index files uploaded to S3)
 
 ---
 
